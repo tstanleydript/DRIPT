@@ -492,10 +492,11 @@ input[type="file"] { display: none; }
   </div>
 
   <div class="stats-grid" style="margin-bottom:16px;">
-    <div class="stat-btn" style="cursor:default;">
+    <button class="stat-btn" id="edit-hours-btn">
       <div class="stat-value" style="font-size:28px;" id="k-hours">0h</div>
       <div class="stat-label">Hours worked</div>
-    </div>
+      <div class="tap-hint" style="color:#60a5fa;">tap to edit</div>
+    </button>
     <div class="stat-btn" style="cursor:default;">
       <div class="stat-value" style="font-size:28px; color:#22c55e;" id="k-rate">$0</div>
       <div class="stat-label">Per hour</div>
@@ -582,7 +583,7 @@ input[type="file"] { display: none; }
   <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
   <button class="secondary-btn" id="clear-old" style="background: #7f1d1d; border-color: #991b1b; color: white;">Clear leads older than 30 days</button>
 
-  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v5</p>
+  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v6</p>
 </div>
 
 </div>
@@ -609,6 +610,32 @@ input[type="file"] { display: none; }
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- HOURS EDIT MODAL -->
+<div id="hours-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#1e293b; border-radius:14px; padding:20px; max-width:340px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <h2 style="margin:0; font-size:16px; color:#f1f5f9;" id="hours-modal-day">Edit hours</h2>
+      <button id="hours-close" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer; padding:0;">×</button>
+    </div>
+    <div id="hours-sessions-list" style="margin-bottom:16px;"></div>
+    <button class="secondary-btn" id="hours-add" style="margin-bottom:12px;">+ Add manual session</button>
+    <div id="hours-add-form" style="display:none; background:#0f172a; border-radius:10px; padding:14px; margin-bottom:12px;">
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group" style="margin:0;">
+          <label>Start</label>
+          <input type="time" id="hours-start" style="font-size:16px;">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>End</label>
+          <input type="time" id="hours-end" style="font-size:16px;">
+        </div>
+      </div>
+      <button class="big-btn" id="hours-save-new" style="margin-bottom:0;">Save session</button>
+    </div>
+    <button class="secondary-btn" id="hours-done" style="margin-bottom:0;">Done</button>
+  </div>
+</div>
 
 <!-- CAMERA MODAL -->
 <div id="camera-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:#000; flex-direction:column;">
@@ -1507,6 +1534,91 @@ function hoursForDay(key) {
   }
   return totalMs;
 }
+
+// --------- EDIT HOURS MODAL ---------
+function openHoursModal() {
+  document.getElementById('hours-modal').style.display = 'flex';
+  document.getElementById('hours-modal-day').textContent = 'Hours — ' +
+    (selectedDateKey === todayKey() ? 'today' : selectedDateKey);
+  document.getElementById('hours-add-form').style.display = 'none';
+  renderHoursSessions();
+}
+function closeHoursModal() {
+  document.getElementById('hours-modal').style.display = 'none';
+  renderKPIStats();
+  renderCalendar();
+}
+function formatTime(iso) {
+  const d = new Date(iso);
+  const h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m}${ampm}`;
+}
+function renderHoursSessions() {
+  const sessions = timeLog[selectedDateKey] || [];
+  const list = document.getElementById('hours-sessions-list');
+  if (sessions.length === 0) {
+    list.innerHTML = '<div style="color:#64748b; font-size:13px; text-align:center; padding:12px 0;">No sessions logged for this day</div>';
+    return;
+  }
+  list.innerHTML = sessions.map((s, i) => {
+    const dur = formatDuration(new Date(s.end).getTime() - new Date(s.start).getTime());
+    return `<div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <div>
+        <div style="font-size:14px; color:#f1f5f9; font-weight:500;">${formatTime(s.start)} → ${formatTime(s.end)}</div>
+        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">${dur}</div>
+      </div>
+      <button data-idx="${i}" class="hours-del" style="background:#7f1d1d; color:white; border:none; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer;">Delete</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.hours-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.idx);
+      if (!confirm('Delete this session?')) return;
+      timeLog[selectedDateKey].splice(idx, 1);
+      if (timeLog[selectedDateKey].length === 0) delete timeLog[selectedDateKey];
+      saveJSON(STORE.timeLog, timeLog);
+      renderHoursSessions();
+    });
+  });
+}
+
+document.getElementById('edit-hours-btn').addEventListener('click', openHoursModal);
+document.getElementById('hours-close').addEventListener('click', closeHoursModal);
+document.getElementById('hours-done').addEventListener('click', closeHoursModal);
+document.getElementById('hours-add').addEventListener('click', () => {
+  const form = document.getElementById('hours-add-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  // Prefill sensible defaults
+  if (form.style.display === 'block') {
+    if (!document.getElementById('hours-start').value) document.getElementById('hours-start').value = '09:00';
+    if (!document.getElementById('hours-end').value) document.getElementById('hours-end').value = '17:00';
+  }
+});
+document.getElementById('hours-save-new').addEventListener('click', () => {
+  const startTime = document.getElementById('hours-start').value;
+  const endTime = document.getElementById('hours-end').value;
+  if (!startTime || !endTime) return toast('Enter start and end times');
+  // Build ISO timestamps for the selected date
+  const [y, mo, d] = selectedDateKey.split('-').map(Number);
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  const startDt = new Date(y, mo - 1, d, sh, sm);
+  const endDt = new Date(y, mo - 1, d, eh, em);
+  if (endDt <= startDt) return toast('End time must be after start');
+  if (!timeLog[selectedDateKey]) timeLog[selectedDateKey] = [];
+  timeLog[selectedDateKey].push({ start: startDt.toISOString(), end: endDt.toISOString() });
+  // Keep sorted chronologically
+  timeLog[selectedDateKey].sort((a, b) => a.start.localeCompare(b.start));
+  saveJSON(STORE.timeLog, timeLog);
+  document.getElementById('hours-add-form').style.display = 'none';
+  document.getElementById('hours-start').value = '';
+  document.getElementById('hours-end').value = '';
+  renderHoursSessions();
+  toast('Session added');
+});
 
 // --------- TOAST ---------
 let toastTimer;
