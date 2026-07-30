@@ -339,7 +339,7 @@ input[type="file"] { display: none; }
   </div>
 
   <div class="stat-btn" style="cursor: default; padding: 16px;">
-    <div class="stat-label" style="margin-top: 0;">Today's sold value</div>
+    <div class="stat-label" style="margin-top: 0;">Jobs sold</div>
     <div class="stat-value" style="font-size: 32px; color: #22c55e; margin-top: 4px;" id="c-value">$0</div>
   </div>
 
@@ -486,9 +486,15 @@ input[type="file"] { display: none; }
     </div>
   </div>
 
-  <div class="stat-btn" style="cursor:default; padding:16px; margin-bottom:12px;">
-    <div class="stat-label" style="margin-top:0;">Sold value</div>
-    <div class="stat-value" style="font-size:28px; color:#22c55e; margin-top:4px;" id="k-value">$0</div>
+  <div class="stats-grid" style="margin-bottom:12px;">
+    <div class="stat-btn" style="cursor:default;">
+      <div class="stat-label" style="margin-top:0;">Sold value</div>
+      <div class="stat-value" style="font-size:24px; color:#22c55e; margin-top:4px;" id="k-value">$0</div>
+    </div>
+    <div class="stat-btn" style="cursor:default;">
+      <div class="stat-label" style="margin-top:0;">Commission</div>
+      <div class="stat-value" style="font-size:24px; color:#22c55e; margin-top:4px;" id="k-earned">$0</div>
+    </div>
   </div>
 
   <div class="stats-grid" style="margin-bottom:16px;">
@@ -583,7 +589,7 @@ input[type="file"] { display: none; }
   <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
   <button class="secondary-btn" id="clear-old" style="background: #7f1d1d; border-color: #991b1b; color: white;">Clear leads older than 30 days</button>
 
-  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v6</p>
+  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v8</p>
 </div>
 
 </div>
@@ -660,7 +666,7 @@ const STORE = {
   activeSession: 'dript_active_session'
 };
 const DEFAULT_SETTINGS = {
-  commission: 15, roof: 900, house: 700, pressure: 250,
+  commission: 20, roof: 900, house: 700, pressure: 250,
   solar: 10, sqm1: 5, sqm2: 6.5, pressureSqm: 8
 };
 function loadJSON(key, fallback) {
@@ -1404,6 +1410,8 @@ function renderKPIStats() {
   document.getElementById('k-quotes').textContent = stats.quotes;
   document.getElementById('k-booked').textContent = stats.booked;
   document.getElementById('k-value').textContent = '$' + stats.value.toLocaleString();
+  const earnedDay = Math.round(stats.value * (settings.commission || 0) / 100);
+  document.getElementById('k-earned').textContent = '$' + earnedDay.toLocaleString();
 
   const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) + '%' : '–';
   document.getElementById('k-convos-pct').textContent = pct(stats.convos, stats.doors) + ' of doors';
@@ -1414,7 +1422,8 @@ function renderKPIStats() {
   const hoursDisplay = ms > 0 ? formatDuration(ms) : '0h';
   document.getElementById('k-hours').textContent = hoursDisplay;
   const hoursDec = ms / 3600000;
-  const rate = (hoursDec > 0 && stats.value > 0) ? Math.round(stats.value / hoursDec) : 0;
+  const earned = stats.value * (settings.commission || 0) / 100;
+  const rate = (hoursDec > 0 && earned > 0) ? Math.round(earned / hoursDec) : 0;
   document.getElementById('k-rate').textContent = rate > 0 ? '$' + rate.toLocaleString() : '–';
 
   renderFunnel(stats);
