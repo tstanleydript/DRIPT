@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dript">
 <meta name="theme-color" content="#0f172a">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Dript Doorknocker</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -555,6 +558,8 @@ input[type="file"] { display: none; }
   <p class="section-title" style="margin-top: 32px;">Data</p>
   <button class="secondary-btn" id="export-all">Export all leads (JSON backup)</button>
   <button class="secondary-btn" id="clear-old" style="background: #7f1d1d; border-color: #991b1b; color: white;">Clear leads older than 30 days</button>
+
+  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v4</p>
 </div>
 
 </div>
@@ -1157,10 +1162,27 @@ document.getElementById('export-all').addEventListener('click', () => {
   a.click(); URL.revokeObjectURL(url);
 });
 document.getElementById('clear-old').addEventListener('click', () => {
-  if (!confirm('Delete leads older than 30 days? This cannot be undone.')) return;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutIso = cutoff.toISOString();
+  const toDelete = leads.filter(l => (l.createdAt || '') < cutIso);
+
+  if (toDelete.length === 0) {
+    toast('No leads older than 30 days to clear');
+    return;
+  }
+
+  const bookedValue = toDelete
+    .filter(l => l.status === 'Booked')
+    .reduce((s, l) => s + calcQuote(l), 0);
+
+  const msg = `Delete ${toDelete.length} lead${toDelete.length > 1 ? 's' : ''} older than 30 days?\n\n` +
+              (bookedValue > 0 ? `This includes booked jobs worth $${bookedValue.toLocaleString()}.\n\n` : '') +
+              `This CANNOT be undone. Consider exporting a backup first.`;
+
+  if (!confirm(msg)) return;
+  if (!confirm(`Are you sure? Delete ${toDelete.length} old leads permanently?`)) return;
+
   const before = leads.length;
   leads = leads.filter(l => (l.createdAt || '') >= cutIso);
   saveJSON(STORE.leads, leads);
