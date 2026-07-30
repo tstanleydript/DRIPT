@@ -252,6 +252,43 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 .section-title { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
 .section-title:first-child { margin-top: 0; }
 input[type="file"] { display: none; }
+
+/* Calendar */
+.cal-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 16px; }
+.cal-header .icon-btn { color: #cbd5e1; font-size: 22px; padding: 4px 12px; }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 11px; color: #64748b; font-weight: 500; margin-bottom: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day {
+  aspect-ratio: 1; background: #1e293b; border: 1px solid #334155;
+  border-radius: 8px; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  padding: 5px 2px 4px;
+  color: #cbd5e1; cursor: pointer;
+  position: relative;
+}
+.cal-day .cal-day-num { font-size: 13px; font-weight: 500; line-height: 1; }
+.cal-day .cal-day-val { font-size: 9px; color: #22c55e; margin-top: auto; font-weight: 600; line-height: 1.1; white-space: nowrap; }
+.cal-day.other-month { opacity: 0.25; }
+.cal-day.today { border-color: #3b82f6; }
+.cal-day.today .cal-day-num { color: #60a5fa; }
+.cal-day.selected { background: #3b82f6; border-color: #3b82f6; color: white; }
+.cal-day.selected .cal-day-num { color: white; }
+.cal-day.selected .cal-day-val { color: #d1fae5; }
+
+.cal-total {
+  text-align: center; padding: 14px 0 4px;
+  font-size: 15px; font-weight: 600; color: #22c55e;
+}
+.cal-total.zero { color: #64748b; font-weight: 500; }
+
+/* Funnel */
+.funnel-row { margin-bottom: 10px; }
+.funnel-labels { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+.funnel-labels .name { color: #cbd5e1; font-weight: 500; }
+.funnel-labels .val { color: #94a3b8; }
+.funnel-track { background: #1e293b; border-radius: 6px; height: 24px; overflow: hidden; }
+.funnel-bar { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 12px; font-weight: 500; transition: width 0.4s; }
+.funnel-drop { font-size: 11px; color: #f59e0b; margin-top: 3px; text-align: right; }
 </style>
 </head>
 <body>
@@ -348,12 +385,9 @@ input[type="file"] { display: none; }
   </div>
   <div class="services-grid" id="services-grid">
     <div class="service-chip" data-svc="roof">Roof wash</div>
-    <div class="service-chip" data-svc="house">House wash</div>
-    <div class="service-chip" data-svc="gutter">Gutters</div>
-    <div class="service-chip" data-svc="pressure">Pressure wash</div>
     <div class="service-chip" data-svc="solar">Solar panels</div>
-    <div class="service-chip" data-svc="windows">Windows</div>
-    <div class="service-chip" data-svc="eaves">Eaves</div>
+    <div class="service-chip" data-svc="house">House wash</div>
+    <div class="service-chip" data-svc="pressure">Pressure wash</div>
     <div class="service-chip" data-svc="other">Other</div>
   </div>
   <div id="service-details"></div>
@@ -392,7 +426,6 @@ input[type="file"] { display: none; }
   <div class="photo-grid" id="photo-grid">
     <div class="photo-tile add" id="add-photo">+</div>
   </div>
-  <input type="file" id="photo-input" accept="image/*" capture="environment">
 
   <button class="big-btn" id="save-lead" style="margin-top: 20px;">Save lead</button>
   <button class="secondary-btn" id="delete-lead" style="background: #7f1d1d; border-color: #991b1b; color: white; display: none;">Delete lead</button>
@@ -401,6 +434,52 @@ input[type="file"] { display: none; }
 <!-- LEADS LIST -->
 <div class="view" id="view-leads">
   <div id="leads-list"></div>
+</div>
+
+<!-- KPI DASHBOARD -->
+<div class="view" id="view-kpi">
+  <div class="cal-header">
+    <button class="icon-btn" id="cal-prev">‹</button>
+    <span id="cal-month-label" style="font-weight:600; font-size:15px;">Month</span>
+    <button class="icon-btn" id="cal-next">›</button>
+  </div>
+  <div class="cal-weekdays">
+    <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-total" id="cal-total"></div>
+
+  <p class="section-title" id="kpi-day-label" style="margin-top:24px;">Today</p>
+
+  <div class="stats-grid" style="margin-bottom:12px;">
+    <div class="stat-btn" style="cursor:default;">
+      <div class="stat-value" id="k-doors">0</div>
+      <div class="stat-label">Doors</div>
+    </div>
+    <div class="stat-btn" style="cursor:default;">
+      <div class="stat-value" id="k-convos">0</div>
+      <div class="stat-label">Conversations</div>
+      <div class="tap-hint" id="k-convos-pct" style="color:#94a3b8;">–</div>
+    </div>
+    <div class="stat-btn" style="cursor:default;">
+      <div class="stat-value" id="k-quotes">0</div>
+      <div class="stat-label">Quotes</div>
+      <div class="tap-hint" id="k-quotes-pct" style="color:#94a3b8;">–</div>
+    </div>
+    <div class="stat-btn" style="cursor:default;">
+      <div class="stat-value" id="k-booked">0</div>
+      <div class="stat-label">Booked</div>
+      <div class="tap-hint" id="k-booked-pct" style="color:#94a3b8;">–</div>
+    </div>
+  </div>
+
+  <div class="stat-btn" style="cursor:default; padding:16px; margin-bottom:16px;">
+    <div class="stat-label" style="margin-top:0;">Sold value</div>
+    <div class="stat-value" style="font-size:28px; color:#22c55e; margin-top:4px;" id="k-value">$0</div>
+  </div>
+
+  <p class="section-title">Conversion funnel</p>
+  <div id="funnel" style="margin-bottom:20px;"></div>
 </div>
 
 <!-- EXPORT -->
@@ -435,7 +514,7 @@ input[type="file"] { display: none; }
     <input type="number" id="s-commission" placeholder="e.g. 15" inputmode="decimal">
   </div>
 
-  <p class="section-title">Pricing defaults</p>
+  <p class="section-title">Fixed prices</p>
   <div class="form-row">
     <div class="form-group">
       <label>Roof min ($)</label>
@@ -446,10 +525,6 @@ input[type="file"] { display: none; }
       <input type="number" id="s-house" inputmode="decimal">
     </div>
     <div class="form-group">
-      <label>Gutter min ($)</label>
-      <input type="number" id="s-gutter" inputmode="decimal">
-    </div>
-    <div class="form-group">
       <label>Pressure min ($)</label>
       <input type="number" id="s-pressure" inputmode="decimal">
     </div>
@@ -457,25 +532,21 @@ input[type="file"] { display: none; }
       <label>Solar per panel ($)</label>
       <input type="number" id="s-solar" inputmode="decimal">
     </div>
-    <div class="form-group">
-      <label>Windows ($)</label>
-      <input type="number" id="s-windows" inputmode="decimal">
-    </div>
-    <div class="form-group">
-      <label>Eaves ($)</label>
-      <input type="number" id="s-eaves" inputmode="decimal">
-    </div>
   </div>
 
-  <p class="section-title">Per-sqm roof pricing</p>
+  <p class="section-title">Per-sqm rates</p>
   <div class="form-row">
     <div class="form-group">
-      <label>1-storey $/sqm</label>
+      <label>Roof 1-storey $/sqm</label>
       <input type="number" id="s-sqm1" inputmode="decimal">
     </div>
     <div class="form-group">
-      <label>2-storey $/sqm</label>
+      <label>Roof 2-storey $/sqm</label>
       <input type="number" id="s-sqm2" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label>Pressure $/sqm</label>
+      <input type="number" id="s-pressuresqm" inputmode="decimal">
     </div>
   </div>
 
@@ -494,9 +565,9 @@ input[type="file"] { display: none; }
     <div class="tab-icon">⌂</div>
     <div>Today</div>
   </button>
-  <button class="tab-btn" data-view="lead" id="tab-new">
-    <div class="tab-icon">+</div>
-    <div>New</div>
+  <button class="tab-btn" data-view="kpi">
+    <div class="tab-icon">▤</div>
+    <div>KPIs</div>
   </button>
   <button class="tab-btn" data-view="leads">
     <div class="tab-icon">☰</div>
@@ -511,6 +582,19 @@ input[type="file"] { display: none; }
 
 <div class="toast" id="toast"></div>
 
+<!-- CAMERA MODAL -->
+<div id="camera-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:#000; flex-direction:column;">
+  <video id="camera-video" autoplay playsinline muted style="flex:1; width:100%; object-fit:cover; background:#000;"></video>
+  <div id="camera-shot-strip" style="display:flex; gap:8px; padding:12px; overflow-x:auto; background:#000; min-height:80px; align-items:center;"></div>
+  <div style="display:flex; align-items:center; justify-content:space-around; padding:16px 20px calc(env(safe-area-inset-bottom) + 20px); background:#000; gap:16px;">
+    <button id="cam-cancel" style="flex:0 0 60px; background:none; border:none; color:white; font-size:16px; padding:12px;">Cancel</button>
+    <button id="cam-shutter" style="width:70px; height:70px; border-radius:50%; background:white; border:4px solid #333; box-shadow:inset 0 0 0 4px #000; cursor:pointer;"></button>
+    <button id="cam-done" style="flex:0 0 60px; background:none; border:none; color:#22c55e; font-size:16px; font-weight:600; padding:12px;">Done</button>
+  </div>
+</div>
+
+<canvas id="camera-canvas" style="display:none;"></canvas>
+
 <script>
 // --------- STORAGE ---------
 const STORE = {
@@ -519,8 +603,8 @@ const STORE = {
   settings: 'dript_settings'
 };
 const DEFAULT_SETTINGS = {
-  commission: 15, roof: 900, house: 700, gutter: 250, pressure: 250,
-  solar: 10, windows: 900, eaves: 400, sqm1: 5, sqm2: 6.5
+  commission: 15, roof: 900, house: 700, pressure: 250,
+  solar: 10, sqm1: 5, sqm2: 6.5, pressureSqm: 8
 };
 function loadJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -569,26 +653,23 @@ function newLead() {
 }
 
 // --------- VIEW SWITCHING ---------
-const views = ['home', 'lead', 'leads', 'export', 'settings'];
+const views = ['home', 'lead', 'leads', 'export', 'settings', 'kpi'];
 function showView(name) {
   views.forEach(v => document.getElementById('view-'+v).classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.toggle('active', t.dataset.view === name));
   document.getElementById('back-btn').style.visibility = (name === 'home') ? 'hidden' : 'visible';
-  const titles = { home: 'Today', lead: editingId ? 'Edit lead' : 'New lead', leads: 'Today\'s leads', export: 'Export', settings: 'Settings' };
+  const titles = { home: 'Today', lead: editingId ? 'Edit lead' : 'New lead', leads: 'Today\'s leads', export: 'Export', settings: 'Settings', kpi: 'KPIs' };
   document.getElementById('header-title').textContent = titles[name] || 'Dript';
   if (name === 'home') renderHome();
   if (name === 'leads') renderLeadsList();
   if (name === 'export') renderExport();
+  if (name === 'kpi') renderKPI();
   window.scrollTo(0, 0);
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const v = btn.dataset.view;
-    if (v === 'lead') { editingId = null; currentLead = newLead(); loadLeadForm(); }
-    showView(v);
-  });
+  btn.addEventListener('click', () => showView(btn.dataset.view));
 });
 document.getElementById('back-btn').addEventListener('click', () => showView('home'));
 document.getElementById('settings-btn').addEventListener('click', () => { loadSettingsForm(); showView('settings'); });
@@ -646,9 +727,8 @@ function calcQuote(lead) {
 }
 
 const SERVICE_LABELS = {
-  roof: 'Roof wash', house: 'House wash', gutter: 'Gutters',
-  pressure: 'Pressure wash', solar: 'Solar panels', windows: 'Windows',
-  eaves: 'Eaves', other: 'Other'
+  roof: 'Roof wash', solar: 'Solar panels', house: 'House wash',
+  pressure: 'Pressure wash', other: 'Other'
 };
 
 function defaultPrice(svc, qty) {
@@ -677,6 +757,9 @@ function renderServiceDetails() {
         <option value="1" ${det.storeys == 1 ? 'selected' : ''}>1</option>
         <option value="2" ${det.storeys == 2 ? 'selected' : ''}>2</option>
       </select></div>`;
+    } else if (svc === 'pressure' && pricingMode === 'sqm') {
+      inner += `<div class="service-detail-row"><label>Sqm</label><input type="number" data-svc="${svc}" data-field="qty" value="${det.qty || ''}" inputmode="decimal"></div>`;
+      inner += `<div class="service-detail-row"><label>$/sqm</label><input type="number" data-svc="${svc}" data-field="rate" value="${det.rate || settings.pressureSqm}" inputmode="decimal"></div>`;
     }
     inner += `<div class="service-detail-row"><label>Price ($)</label><input type="number" data-svc="${svc}" data-field="price" value="${det.price || ''}" inputmode="decimal"></div>`;
     box.innerHTML = inner;
@@ -689,11 +772,16 @@ function renderServiceDetails() {
       const field = inp.dataset.field;
       currentLead.services[svc][field] = inp.value;
       // If they changed qty/storeys, recalc default price (but don't overwrite manual price edits)
-      if (field === 'qty' || field === 'storeys') {
+      if (field === 'qty' || field === 'storeys' || field === 'rate') {
         if (svc === 'roof' && pricingMode === 'sqm') {
           const rate = currentLead.services[svc].storeys == 2 ? settings.sqm2 : settings.sqm1;
           currentLead.services[svc].price = Math.round((currentLead.services[svc].qty || 0) * rate);
           const priceInp = container.querySelector(`input[data-svc="roof"][data-field="price"]`);
+          if (priceInp) priceInp.value = currentLead.services[svc].price;
+        } else if (svc === 'pressure' && pricingMode === 'sqm') {
+          const rate = Number(currentLead.services[svc].rate || settings.pressureSqm);
+          currentLead.services[svc].price = Math.round((currentLead.services[svc].qty || 0) * rate);
+          const priceInp = container.querySelector(`input[data-svc="pressure"][data-field="price"]`);
           if (priceInp) priceInp.value = currentLead.services[svc].price;
         } else if (svc === 'solar') {
           currentLead.services[svc].price = (currentLead.services[svc].qty || 0) * settings.solar;
@@ -734,18 +822,16 @@ document.getElementById('mode-fixed').addEventListener('click', () => {
   pricingMode = 'fixed';
   document.getElementById('mode-fixed').classList.add('active');
   document.getElementById('mode-sqm').classList.remove('active');
-  if (currentLead.services.roof) {
-    currentLead.services.roof = { price: settings.roof };
-  }
+  if (currentLead.services.roof) currentLead.services.roof = { price: settings.roof };
+  if (currentLead.services.pressure) currentLead.services.pressure = { price: settings.pressure };
   renderServiceDetails(); updateQuoteDisplay();
 });
 document.getElementById('mode-sqm').addEventListener('click', () => {
   pricingMode = 'sqm';
   document.getElementById('mode-sqm').classList.add('active');
   document.getElementById('mode-fixed').classList.remove('active');
-  if (currentLead.services.roof) {
-    currentLead.services.roof = { price: 0, qty: '', storeys: 1 };
-  }
+  if (currentLead.services.roof) currentLead.services.roof = { price: 0, qty: '', storeys: 1 };
+  if (currentLead.services.pressure) currentLead.services.pressure = { price: 0, qty: '', rate: settings.pressureSqm };
   renderServiceDetails(); updateQuoteDisplay();
 });
 
@@ -814,37 +900,91 @@ function renderPhotos() {
     });
   });
 }
-document.getElementById('add-photo').addEventListener('click', () => document.getElementById('photo-input').click());
-document.getElementById('photo-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const compressed = await compressImage(file, 1200, 0.7);
-  currentLead.photos = currentLead.photos || [];
-  currentLead.photos.push(compressed);
-  renderPhotos();
-  e.target.value = '';
-});
-function compressImage(file, maxDim, quality) {
-  return new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        if (w > h && w > maxDim) { h = h * (maxDim / w); w = maxDim; }
-        else if (h > maxDim) { w = w * (maxDim / h); h = maxDim; }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        res(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = rej;
-      img.src = e.target.result;
-    };
-    reader.onerror = rej;
-    reader.readAsDataURL(file);
+document.getElementById('add-photo').addEventListener('click', openCamera);
+
+// --------- CAMERA MODAL ---------
+let cameraStream = null;
+let cameraShots = []; // temp buffer of dataURLs taken this session
+
+async function openCamera() {
+  cameraShots = [];
+  renderShotStrip();
+  const modal = document.getElementById('camera-modal');
+  modal.style.display = 'flex';
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+    document.getElementById('camera-video').srcObject = cameraStream;
+  } catch (err) {
+    modal.style.display = 'none';
+    toast('Camera access denied');
+  }
+}
+
+function closeCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  document.getElementById('camera-modal').style.display = 'none';
+  document.getElementById('camera-video').srcObject = null;
+}
+
+function renderShotStrip() {
+  const strip = document.getElementById('camera-shot-strip');
+  if (cameraShots.length === 0) {
+    strip.innerHTML = '<div style="color:#666; font-size:13px; padding:0 8px;">Tap the shutter to add photos. Tap Done when finished.</div>';
+    return;
+  }
+  strip.innerHTML = cameraShots.map((src, i) =>
+    `<div style="position:relative; flex:0 0 auto;">
+      <img src="${src}" style="width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid #333;">
+      <button data-idx="${i}" class="shot-remove" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#dc2626; color:white; border:none; font-size:14px; cursor:pointer;">×</button>
+    </div>`
+  ).join('');
+  strip.querySelectorAll('.shot-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cameraShots.splice(Number(btn.dataset.idx), 1);
+      renderShotStrip();
+    });
   });
 }
+
+document.getElementById('cam-shutter').addEventListener('click', () => {
+  const video = document.getElementById('camera-video');
+  const canvas = document.getElementById('camera-canvas');
+  if (!video.videoWidth) return;
+  // Cap at 1200px for storage
+  const maxDim = 1200;
+  let w = video.videoWidth, h = video.videoHeight;
+  if (w > h && w > maxDim) { h = h * (maxDim / w); w = maxDim; }
+  else if (h > maxDim) { w = w * (maxDim / h); h = maxDim; }
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+  cameraShots.push(canvas.toDataURL('image/jpeg', 0.7));
+  renderShotStrip();
+  if (navigator.vibrate) navigator.vibrate(20);
+  // Flash effect
+  const flash = document.createElement('div');
+  flash.style.cssText = 'position:absolute; inset:0; background:white; z-index:1001; pointer-events:none; opacity:0.6; transition: opacity 0.15s;';
+  document.getElementById('camera-modal').appendChild(flash);
+  setTimeout(() => { flash.style.opacity = 0; setTimeout(() => flash.remove(), 200); }, 30);
+});
+
+document.getElementById('cam-done').addEventListener('click', () => {
+  currentLead.photos = currentLead.photos || [];
+  currentLead.photos.push(...cameraShots);
+  closeCamera();
+  renderPhotos();
+  if (cameraShots.length) toast(`Added ${cameraShots.length} photo${cameraShots.length > 1 ? 's' : ''}`);
+});
+
+document.getElementById('cam-cancel').addEventListener('click', () => {
+  if (cameraShots.length && !confirm('Discard photos taken this session?')) return;
+  closeCamera();
+});
 
 // --------- SAVE LEAD ---------
 document.getElementById('save-lead').addEventListener('click', () => {
@@ -978,7 +1118,8 @@ document.getElementById('email-btn').addEventListener('click', () => {
   const text = document.getElementById('export-text').textContent;
   const subject = encodeURIComponent(`Dript doorknock ${todayLabel()}`);
   const body = encodeURIComponent(text);
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  // Gmail web compose — opens in Gmail app on iOS if installed & default, else Gmail web
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`, '_blank');
 });
 
 // --------- SETTINGS ---------
@@ -986,26 +1127,22 @@ function loadSettingsForm() {
   document.getElementById('s-commission').value = settings.commission;
   document.getElementById('s-roof').value = settings.roof;
   document.getElementById('s-house').value = settings.house;
-  document.getElementById('s-gutter').value = settings.gutter;
   document.getElementById('s-pressure').value = settings.pressure;
   document.getElementById('s-solar').value = settings.solar;
-  document.getElementById('s-windows').value = settings.windows;
-  document.getElementById('s-eaves').value = settings.eaves;
   document.getElementById('s-sqm1').value = settings.sqm1;
   document.getElementById('s-sqm2').value = settings.sqm2;
+  document.getElementById('s-pressuresqm').value = settings.pressureSqm;
 }
 document.getElementById('save-settings').addEventListener('click', () => {
   settings = {
     commission: Number(document.getElementById('s-commission').value) || 0,
     roof: Number(document.getElementById('s-roof').value) || 0,
     house: Number(document.getElementById('s-house').value) || 0,
-    gutter: Number(document.getElementById('s-gutter').value) || 0,
     pressure: Number(document.getElementById('s-pressure').value) || 0,
     solar: Number(document.getElementById('s-solar').value) || 0,
-    windows: Number(document.getElementById('s-windows').value) || 0,
-    eaves: Number(document.getElementById('s-eaves').value) || 0,
     sqm1: Number(document.getElementById('s-sqm1').value) || 5,
-    sqm2: Number(document.getElementById('s-sqm2').value) || 6.5
+    sqm2: Number(document.getElementById('s-sqm2').value) || 6.5,
+    pressureSqm: Number(document.getElementById('s-pressuresqm').value) || 8
   };
   saveJSON(STORE.settings, settings);
   toast('Settings saved');
@@ -1028,6 +1165,161 @@ document.getElementById('clear-old').addEventListener('click', () => {
   leads = leads.filter(l => (l.createdAt || '') >= cutIso);
   saveJSON(STORE.leads, leads);
   toast(`Removed ${before - leads.length} old leads`);
+});
+
+// --------- KPI DASHBOARD ---------
+let calYear, calMonth, selectedDateKey;
+
+function dateKeyFor(year, month, day) {
+  return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
+function statsForDay(key) {
+  const k = kpi[key] || { doors: 0, convos: 0 };
+  const dayLeads = leads.filter(l => l.dateKey === key);
+  const quotes = dayLeads.filter(l => calcQuote(l) > 0).length;
+  const booked = dayLeads.filter(l => l.status === 'Booked').length;
+  const value = dayLeads.filter(l => l.status === 'Booked').reduce((s,l) => s + calcQuote(l), 0);
+  return { doors: k.doors, convos: k.convos, quotes, booked, value };
+}
+
+function renderCalendar() {
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent = `${monthNames[calMonth]} ${calYear}`;
+  const grid = document.getElementById('cal-grid');
+  const first = new Date(calYear, calMonth, 1);
+  // Monday-first: Sunday=0 in JS, we want offset so Mon=0
+  const startOffset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const daysInPrev = new Date(calYear, calMonth, 0).getDate();
+  const todayK = todayKey();
+
+  let cells = [];
+  // Previous month tail
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const d = daysInPrev - i;
+    const prevMonth = calMonth === 0 ? 11 : calMonth - 1;
+    const prevYear = calMonth === 0 ? calYear - 1 : calYear;
+    cells.push({ day: d, key: dateKeyFor(prevYear, prevMonth, d), other: true });
+  }
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, key: dateKeyFor(calYear, calMonth, d), other: false });
+  }
+  // Next month lead to fill grid to full weeks
+  while (cells.length % 7 !== 0) {
+    const idx = cells.length - startOffset - daysInMonth + 1;
+    const nextMonth = calMonth === 11 ? 0 : calMonth + 1;
+    const nextYear = calMonth === 11 ? calYear + 1 : calYear;
+    cells.push({ day: idx, key: dateKeyFor(nextYear, nextMonth, idx), other: true });
+  }
+
+  grid.innerHTML = cells.map(c => {
+    const classes = ['cal-day'];
+    if (c.other) classes.push('other-month');
+    if (c.key === todayK) classes.push('today');
+    if (c.key === selectedDateKey) classes.push('selected');
+    const stats = statsForDay(c.key);
+    const valueHtml = (stats.value > 0 && !c.other)
+      ? `<div class="cal-day-val">+$${stats.value}</div>`
+      : '';
+    return `<div class="${classes.join(' ')}" data-key="${c.key}">
+      <div class="cal-day-num">${c.day}</div>
+      ${valueHtml}
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.cal-day').forEach(cell => {
+    cell.addEventListener('click', () => {
+      selectedDateKey = cell.dataset.key;
+      // If from adjacent month, jump the calendar
+      const [y, m] = selectedDateKey.split('-').map(Number);
+      if (y !== calYear || (m - 1) !== calMonth) {
+        calYear = y; calMonth = m - 1;
+      }
+      renderCalendar();
+      renderKPIStats();
+    });
+  });
+
+  // Monthly total
+  let monthTotal = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    monthTotal += statsForDay(dateKeyFor(calYear, calMonth, d)).value;
+  }
+  const totalEl = document.getElementById('cal-total');
+  if (monthTotal > 0) {
+    totalEl.textContent = `${monthNames[calMonth]} total: +$${monthTotal.toLocaleString()}`;
+    totalEl.classList.remove('zero');
+  } else {
+    totalEl.textContent = `${monthNames[calMonth]} total: $0`;
+    totalEl.classList.add('zero');
+  }
+}
+
+function renderKPIStats() {
+  const stats = statsForDay(selectedDateKey);
+  const [y, m, d] = selectedDateKey.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const label = dt.toDateString() === new Date().toDateString()
+    ? 'Today'
+    : dt.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('kpi-day-label').textContent = label;
+
+  document.getElementById('k-doors').textContent = stats.doors;
+  document.getElementById('k-convos').textContent = stats.convos;
+  document.getElementById('k-quotes').textContent = stats.quotes;
+  document.getElementById('k-booked').textContent = stats.booked;
+  document.getElementById('k-value').textContent = '$' + stats.value.toLocaleString();
+
+  const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) + '%' : '–';
+  document.getElementById('k-convos-pct').textContent = pct(stats.convos, stats.doors) + ' of doors';
+  document.getElementById('k-quotes-pct').textContent = pct(stats.quotes, stats.convos) + ' of convos';
+  document.getElementById('k-booked-pct').textContent = pct(stats.booked, stats.quotes) + ' of quotes';
+
+  renderFunnel(stats);
+}
+
+function renderFunnel(s) {
+  const max = Math.max(s.doors, 1);
+  const rows = [
+    { name: 'Doors', val: s.doors, color: '#3b82f6' },
+    { name: 'Conversations', val: s.convos, color: '#8b5cf6', dropFrom: s.doors, dropLabel: 'doors' },
+    { name: 'Quotes given', val: s.quotes, color: '#f59e0b', dropFrom: s.convos, dropLabel: 'convos' },
+    { name: 'Booked', val: s.booked, color: '#22c55e', dropFrom: s.quotes, dropLabel: 'quotes' }
+  ];
+  document.getElementById('funnel').innerHTML = rows.map(r => {
+    const pct = Math.max((r.val / max) * 100, r.val > 0 ? 4 : 0);
+    let drop = '';
+    if (r.dropFrom !== undefined) {
+      if (r.dropFrom > 0) {
+        const conv = Math.round((r.val / r.dropFrom) * 100);
+        drop = `<div class="funnel-drop">${conv}% conversion from ${r.dropLabel}</div>`;
+      }
+    }
+    return `<div class="funnel-row">
+      <div class="funnel-labels"><span class="name">${r.name}</span><span class="val">${r.val}</span></div>
+      <div class="funnel-track"><div class="funnel-bar" style="width:${pct}%; background:${r.color};">${r.val > 0 ? r.val : ''}</div></div>
+      ${drop}
+    </div>`;
+  }).join('');
+}
+
+function renderKPI() {
+  const now = new Date();
+  if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  if (!selectedDateKey) selectedDateKey = todayKey();
+  renderCalendar();
+  renderKPIStats();
+}
+
+document.getElementById('cal-prev').addEventListener('click', () => {
+  if (calMonth === 0) { calMonth = 11; calYear--; } else calMonth--;
+  renderCalendar();
+});
+document.getElementById('cal-next').addEventListener('click', () => {
+  if (calMonth === 11) { calMonth = 0; calYear++; } else calMonth++;
+  renderCalendar();
 });
 
 // --------- TOAST ---------
