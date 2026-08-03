@@ -615,7 +615,7 @@ button.stat-mini:active { background: #334155; }
   <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
   <button class="secondary-btn" id="clear-old" style="background: #7f1d1d; border-color: #991b1b; color: white;">Clear leads older than 30 days</button>
 
-  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v11</p>
+  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v12</p>
 </div>
 
 </div>
@@ -1633,10 +1633,12 @@ function renderKPI() {
 document.getElementById('cal-prev').addEventListener('click', () => {
   if (calMonth === 0) { calMonth = 11; calYear--; } else calMonth--;
   renderCalendar();
+  renderKPIStats();
 });
 document.getElementById('cal-next').addEventListener('click', () => {
   if (calMonth === 11) { calMonth = 0; calYear++; } else calMonth++;
   renderCalendar();
+  renderKPIStats();
 });
 
 document.getElementById('kpi-add-lead').addEventListener('click', () => {
