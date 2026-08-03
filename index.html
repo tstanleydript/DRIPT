@@ -215,6 +215,21 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 
 .empty { text-align: center; padding: 60px 20px; color: #64748b; font-size: 14px; }
 
+.leads-search {
+  width: 100%;
+  padding: 12px 14px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  color: #f1f5f9;
+  font-size: 15px;
+  margin-bottom: 12px;
+  font-family: inherit;
+  -webkit-appearance: none;
+}
+.leads-search:focus { outline: none; border-color: #3b82f6; }
+.leads-search::placeholder { color: #64748b; }
+
 /* Bottom tab bar */
 .tab-bar {
   display: grid; grid-template-columns: repeat(4, 1fr);
@@ -294,13 +309,34 @@ input[type="file"] { display: none; }
 .cal-total.zero { color: #64748b; font-weight: 500; }
 
 /* Funnel */
-.funnel-row { margin-bottom: 10px; }
-.funnel-labels { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+.funnel-row { margin-bottom: 8px; }
+.funnel-labels { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
 .funnel-labels .name { color: #cbd5e1; font-weight: 500; }
 .funnel-labels .val { color: #94a3b8; }
-.funnel-track { background: #1e293b; border-radius: 6px; height: 24px; overflow: hidden; }
-.funnel-bar { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 12px; font-weight: 500; transition: width 0.4s; }
-.funnel-drop { font-size: 11px; color: #f59e0b; margin-top: 3px; text-align: right; }
+.funnel-track { background: #1e293b; border-radius: 5px; height: 18px; overflow: hidden; }
+.funnel-bar { height: 100%; border-radius: 5px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 11px; font-weight: 500; transition: width 0.4s; }
+.funnel-drop { font-size: 10px; color: #f59e0b; margin-top: 2px; text-align: right; }
+
+/* Compact mini stat cards for KPI page */
+.mini-grid-4 {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 6px; margin-bottom: 8px;
+}
+.mini-grid-2 {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 6px; margin-bottom: 8px;
+}
+.stat-mini {
+  background: #1e293b; border: 1px solid #334155;
+  border-radius: 10px; padding: 10px 6px;
+  text-align: center; color: #f1f5f9;
+  font-family: inherit;
+}
+button.stat-mini { cursor: pointer; }
+button.stat-mini:active { background: #334155; }
+.stat-mini .val { font-size: 20px; font-weight: 700; line-height: 1; }
+.stat-mini .lbl { font-size: 10px; color: #94a3b8; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 500; }
+.stat-mini .pct { font-size: 10px; color: #60a5fa; margin-top: 2px; line-height: 1; }
 </style>
 </head>
 <body>
@@ -446,6 +482,7 @@ input[type="file"] { display: none; }
 
 <!-- LEADS LIST -->
 <div class="view" id="view-leads">
+  <input type="text" id="leads-search" class="leads-search" placeholder="Search name, address, phone, notes..." autocomplete="off" autocapitalize="none">
   <div id="leads-list"></div>
 </div>
 
@@ -462,55 +499,44 @@ input[type="file"] { display: none; }
   <div class="cal-grid" id="cal-grid"></div>
   <div class="cal-total" id="cal-total"></div>
 
-  <p class="section-title" id="kpi-day-label" style="margin-top:24px;">Today</p>
-
-  <div class="stats-grid" style="margin-bottom:12px;">
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-value" id="k-doors">0</div>
-      <div class="stat-label">Doors</div>
-    </div>
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-value" id="k-convos">0</div>
-      <div class="stat-label">Conversations</div>
-      <div class="tap-hint" id="k-convos-pct" style="color:#94a3b8;">–</div>
-    </div>
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-value" id="k-quotes">0</div>
-      <div class="stat-label">Quotes</div>
-      <div class="tap-hint" id="k-quotes-pct" style="color:#94a3b8;">–</div>
-    </div>
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-value" id="k-booked">0</div>
-      <div class="stat-label">Booked</div>
-      <div class="tap-hint" id="k-booked-pct" style="color:#94a3b8;">–</div>
-    </div>
+  <!-- DAY SECTION -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; margin-bottom:10px;">
+    <p class="section-title" id="kpi-day-label" style="margin:0;">Today</p>
+    <button id="kpi-add-lead" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:500; cursor:pointer;">+ Add lead</button>
   </div>
-
-  <div class="stats-grid" style="margin-bottom:12px;">
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-label" style="margin-top:0;">Sold value</div>
-      <div class="stat-value" style="font-size:24px; color:#22c55e; margin-top:4px;" id="k-value">$0</div>
-    </div>
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-label" style="margin-top:0;">Commission</div>
-      <div class="stat-value" style="font-size:24px; color:#22c55e; margin-top:4px;" id="k-earned">$0</div>
-    </div>
+  <div class="mini-grid-4">
+    <div class="stat-mini"><div class="val" id="k-doors">0</div><div class="lbl">Doors</div></div>
+    <div class="stat-mini"><div class="val" id="k-convos">0</div><div class="lbl">Convos</div><div class="pct" id="k-convos-pct">–</div></div>
+    <div class="stat-mini"><div class="val" id="k-quotes">0</div><div class="lbl">Quotes</div><div class="pct" id="k-quotes-pct">–</div></div>
+    <div class="stat-mini"><div class="val" id="k-booked">0</div><div class="lbl">Booked</div><div class="pct" id="k-booked-pct">–</div></div>
   </div>
-
-  <div class="stats-grid" style="margin-bottom:16px;">
-    <button class="stat-btn" id="edit-hours-btn">
-      <div class="stat-value" style="font-size:28px;" id="k-hours">0h</div>
-      <div class="stat-label">Hours worked</div>
-      <div class="tap-hint" style="color:#60a5fa;">tap to edit</div>
-    </button>
-    <div class="stat-btn" style="cursor:default;">
-      <div class="stat-value" style="font-size:28px; color:#22c55e;" id="k-rate">$0</div>
-      <div class="stat-label">Per hour</div>
-    </div>
+  <div class="mini-grid-2">
+    <div class="stat-mini"><div class="val" style="color:#22c55e;" id="k-value">$0</div><div class="lbl">Sold</div></div>
+    <div class="stat-mini"><div class="val" style="color:#22c55e;" id="k-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
+  <div class="mini-grid-2">
+    <button class="stat-mini" id="edit-hours-btn"><div class="val" id="k-hours">0h</div><div class="lbl">Hours · tap to edit</div></button>
+    <div class="stat-mini"><div class="val" style="color:#22c55e;" id="k-rate">$0</div><div class="lbl">Per hour</div></div>
+  </div>
+  <div id="funnel" style="margin-top:12px;"></div>
 
-  <p class="section-title">Conversion funnel</p>
-  <div id="funnel" style="margin-bottom:20px;"></div>
+  <!-- MONTH SECTION -->
+  <p class="section-title" id="kpi-month-label" style="margin-top:20px;">Month</p>
+  <div class="mini-grid-4">
+    <div class="stat-mini"><div class="val" id="m-doors">0</div><div class="lbl">Doors</div></div>
+    <div class="stat-mini"><div class="val" id="m-convos">0</div><div class="lbl">Convos</div><div class="pct" id="m-convos-pct">–</div></div>
+    <div class="stat-mini"><div class="val" id="m-quotes">0</div><div class="lbl">Quotes</div><div class="pct" id="m-quotes-pct">–</div></div>
+    <div class="stat-mini"><div class="val" id="m-booked">0</div><div class="lbl">Booked</div><div class="pct" id="m-booked-pct">–</div></div>
+  </div>
+  <div class="mini-grid-2">
+    <div class="stat-mini"><div class="val" style="color:#22c55e;" id="m-value">$0</div><div class="lbl">Sold</div></div>
+    <div class="stat-mini"><div class="val" style="color:#22c55e;" id="m-earned">$0</div><div class="lbl">Commission</div></div>
+  </div>
+  <div class="mini-grid-2">
+    <div class="stat-mini"><div class="val" id="m-hours">0h</div><div class="lbl">Hours</div></div>
+    <div class="stat-mini"><div class="val" style="color:#22c55e;" id="m-rate">$0</div><div class="lbl">Per hour</div></div>
+  </div>
+  <div id="funnel-month" style="margin-top:12px; margin-bottom:24px;"></div>
 </div>
 
 <!-- EXPORT -->
@@ -589,7 +615,7 @@ input[type="file"] { display: none; }
   <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
   <button class="secondary-btn" id="clear-old" style="background: #7f1d1d; border-color: #991b1b; color: white;">Clear leads older than 30 days</button>
 
-  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v8</p>
+  <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v11</p>
 </div>
 
 </div>
@@ -645,12 +671,19 @@ input[type="file"] { display: none; }
 
 <!-- CAMERA MODAL -->
 <div id="camera-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:#000; flex-direction:column;">
-  <video id="camera-video" autoplay playsinline muted style="flex:1; width:100%; object-fit:cover; background:#000;"></video>
-  <div id="camera-shot-strip" style="display:flex; gap:8px; padding:12px; overflow-x:auto; background:#000; min-height:80px; align-items:center;"></div>
-  <div style="display:flex; align-items:center; justify-content:space-around; padding:16px 20px calc(env(safe-area-inset-bottom) + 20px); background:#000; gap:16px;">
-    <button id="cam-cancel" style="flex:0 0 60px; background:none; border:none; color:white; font-size:16px; padding:12px;">Cancel</button>
-    <button id="cam-shutter" style="width:70px; height:70px; border-radius:50%; background:white; border:4px solid #333; box-shadow:inset 0 0 0 4px #000; cursor:pointer;"></button>
-    <button id="cam-done" style="flex:0 0 60px; background:none; border:none; color:#22c55e; font-size:16px; font-weight:600; padding:12px;">Done</button>
+  <!-- Top bar with X and Done -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding: calc(env(safe-area-inset-top) + 12px) 16px 12px; background: rgba(0,0,0,0.5); position:relative; z-index:2;">
+    <button id="cam-cancel" style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.15); color:white; border:none; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>
+    <div id="cam-count" style="color:white; font-size:14px; font-weight:500;">0 photos</div>
+    <button id="cam-done" style="min-width:60px; height:40px; border-radius:20px; background:#22c55e; color:white; border:none; font-size:15px; font-weight:600; cursor:pointer; padding: 0 16px;">Done</button>
+  </div>
+  <!-- Video area -->
+  <video id="camera-video" autoplay playsinline muted style="flex:1; width:100%; object-fit:cover; background:#000; min-height:0;"></video>
+  <!-- Thumbnail strip -->
+  <div id="camera-shot-strip" style="display:flex; gap:8px; padding:10px 12px; overflow-x:auto; background:#000; min-height:70px; align-items:center;"></div>
+  <!-- Shutter -->
+  <div style="display:flex; align-items:center; justify-content:center; padding: 14px 20px calc(env(safe-area-inset-bottom) + 20px); background:#000;">
+    <button id="cam-shutter" style="width:72px; height:72px; border-radius:50%; background:white; border:4px solid #333; box-shadow:inset 0 0 0 4px #000; cursor:pointer;"></button>
   </div>
 </div>
 
@@ -694,6 +727,17 @@ function shortDate(iso) {
   const d = new Date(iso);
   return `${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(2)}`;
 }
+function shortTime(iso) {
+  const d = new Date(iso);
+  const h = d.getHours();
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${mm}${ampm}`;
+}
+function shortDateTime(iso) {
+  return `${shortDate(iso)} · ${shortTime(iso)}`;
+}
 function getKPI() {
   const k = todayKey();
   if (!kpi[k]) kpi[k] = { doors: 0, convos: 0 };
@@ -705,7 +749,12 @@ let editingId = null;
 let currentLead = null;
 let pricingMode = 'fixed';
 
-function newLead() {
+function newLead(overrideDateKey) {
+  const targetDate = overrideDateKey || todayKey();
+  // For same-day, use current time; for retroactive, midday of that day
+  const createdAt = (!overrideDateKey || overrideDateKey === todayKey())
+    ? new Date().toISOString()
+    : `${overrideDateKey}T12:00:00.000Z`;
   return {
     id: 'l' + Date.now() + Math.random().toString(36).slice(2,6),
     name: '', address: '', phone: '', email: '',
@@ -713,8 +762,8 @@ function newLead() {
     manualQuote: null,
     status: '', booking: '', notes: '',
     rating: '', photos: [],
-    createdAt: new Date().toISOString(),
-    dateKey: todayKey()
+    createdAt: createdAt,
+    dateKey: targetDate
   };
 }
 
@@ -741,7 +790,13 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 document.getElementById('back-btn').addEventListener('click', () => showView('home'));
 document.getElementById('settings-btn').addEventListener('click', () => { loadSettingsForm(); showView('settings'); });
-document.getElementById('new-lead-btn').addEventListener('click', () => { editingId = null; currentLead = newLead(); loadLeadForm(); showView('lead'); });
+document.getElementById('new-lead-btn').addEventListener('click', () => {
+  editingId = null;
+  currentLead = newLead();
+  maybeAutoClockIn();
+  loadLeadForm();
+  showView('lead');
+});
 document.getElementById('view-leads-btn').addEventListener('click', () => showView('leads'));
 document.getElementById('view-export-btn').addEventListener('click', () => showView('export'));
 
@@ -1002,14 +1057,16 @@ function closeCamera() {
 
 function renderShotStrip() {
   const strip = document.getElementById('camera-shot-strip');
-  if (cameraShots.length === 0) {
-    strip.innerHTML = '<div style="color:#666; font-size:13px; padding:0 8px;">Tap the shutter to add photos. Tap Done when finished.</div>';
+  const count = cameraShots.length;
+  document.getElementById('cam-count').textContent = count === 0 ? 'No photos yet' : `${count} photo${count > 1 ? 's' : ''}`;
+  if (count === 0) {
+    strip.innerHTML = '<div style="color:#666; font-size:12px; padding:0 8px;">Tap shutter to add photos</div>';
     return;
   }
   strip.innerHTML = cameraShots.map((src, i) =>
     `<div style="position:relative; flex:0 0 auto;">
-      <img src="${src}" style="width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid #333;">
-      <button data-idx="${i}" class="shot-remove" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#dc2626; color:white; border:none; font-size:14px; cursor:pointer;">×</button>
+      <img src="${src}" style="width:54px; height:54px; object-fit:cover; border-radius:6px; border:1px solid #333;">
+      <button data-idx="${i}" class="shot-remove" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#dc2626; color:white; border:none; font-size:14px; cursor:pointer; padding:0; line-height:1; display:flex; align-items:center; justify-content:center;">×</button>
     </div>`
   ).join('');
   strip.querySelectorAll('.shot-remove').forEach(btn => {
@@ -1021,24 +1078,38 @@ function renderShotStrip() {
 }
 
 document.getElementById('cam-shutter').addEventListener('click', () => {
+  const btn = document.getElementById('cam-shutter');
+  if (btn.disabled) return;
+  btn.disabled = true;
+
   const video = document.getElementById('camera-video');
   const canvas = document.getElementById('camera-canvas');
-  if (!video.videoWidth) return;
-  // Cap at 1200px for storage
-  const maxDim = 1200;
-  let w = video.videoWidth, h = video.videoHeight;
-  if (w > h && w > maxDim) { h = h * (maxDim / w); w = maxDim; }
-  else if (h > maxDim) { w = w * (maxDim / h); h = maxDim; }
-  canvas.width = w; canvas.height = h;
-  canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-  cameraShots.push(canvas.toDataURL('image/jpeg', 0.7));
-  renderShotStrip();
-  if (navigator.vibrate) navigator.vibrate(20);
-  // Flash effect
-  const flash = document.createElement('div');
-  flash.style.cssText = 'position:absolute; inset:0; background:white; z-index:1001; pointer-events:none; opacity:0.6; transition: opacity 0.15s;';
-  document.getElementById('camera-modal').appendChild(flash);
-  setTimeout(() => { flash.style.opacity = 0; setTimeout(() => flash.remove(), 200); }, 30);
+  if (!video.videoWidth) {
+    btn.disabled = false;
+    return;
+  }
+  try {
+    // Cap at 1200px for storage
+    const maxDim = 1200;
+    let w = video.videoWidth, h = video.videoHeight;
+    if (w > h && w > maxDim) { h = h * (maxDim / w); w = maxDim; }
+    else if (h > maxDim) { w = w * (maxDim / h); h = maxDim; }
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+    cameraShots.push(canvas.toDataURL('image/jpeg', 0.7));
+    renderShotStrip();
+    if (navigator.vibrate) navigator.vibrate(20);
+    // Flash effect
+    const modal = document.getElementById('camera-modal');
+    const flash = document.createElement('div');
+    flash.style.cssText = 'position:absolute; inset:0; background:white; z-index:1001; pointer-events:none; opacity:0.6; transition: opacity 0.15s;';
+    modal.appendChild(flash);
+    setTimeout(() => { flash.style.opacity = 0; setTimeout(() => flash.remove(), 200); }, 30);
+  } catch (err) {
+    toast('Photo capture failed');
+  }
+  // Re-enable after brief cooldown to prevent double-tap crashes
+  setTimeout(() => { btn.disabled = false; }, 250);
 });
 
 document.getElementById('cam-done').addEventListener('click', () => {
@@ -1059,16 +1130,27 @@ document.getElementById('save-lead').addEventListener('click', () => {
   if (!currentLead.name && !currentLead.address) {
     return toast('Add at least a name or address');
   }
-  if (editingId) {
-    const i = leads.findIndex(l => l.id === editingId);
-    if (i >= 0) leads[i] = currentLead;
-  } else {
-    leads.push(currentLead);
+  try {
+    if (editingId) {
+      const i = leads.findIndex(l => l.id === editingId);
+      if (i >= 0) leads[i] = currentLead;
+    } else {
+      leads.push(currentLead);
+    }
+    localStorage.setItem(STORE.leads, JSON.stringify(leads));
+    toast(editingId ? 'Lead updated' : 'Lead saved');
+    editingId = null;
+    showView('home');
+  } catch (err) {
+    // Roll back the array change
+    if (!editingId) leads.pop();
+    // Quota exceeded is the most likely cause
+    if (err && (err.name === 'QuotaExceededError' || String(err).toLowerCase().includes('quota'))) {
+      toast('Storage full — remove some photos and try again');
+    } else {
+      toast('Save failed');
+    }
   }
-  saveJSON(STORE.leads, leads);
-  toast(editingId ? 'Lead updated' : 'Lead saved');
-  editingId = null;
-  showView('home');
 });
 document.getElementById('delete-lead').addEventListener('click', () => {
   if (!editingId) return;
@@ -1081,15 +1163,27 @@ document.getElementById('delete-lead').addEventListener('click', () => {
 });
 
 // --------- LEADS LIST ---------
+let leadsSearchTerm = '';
+
 function renderLeadsList() {
   const list = document.getElementById('leads-list');
-  const today = leads.filter(l => l.dateKey === todayKey())
+  const filter = leadsSearchTerm;
+  const matches = l => {
+    if (!filter) return true;
+    const fields = [l.name, l.address, l.phone, l.email, l.notes, l.status]
+      .filter(Boolean).map(String).join(' ').toLowerCase();
+    return fields.includes(filter);
+  };
+  const filtered = leads.filter(matches);
+  const today = filtered.filter(l => l.dateKey === todayKey())
     .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const older = leads.filter(l => l.dateKey !== todayKey())
+  const older = filtered.filter(l => l.dateKey !== todayKey())
     .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
   if (today.length === 0 && older.length === 0) {
-    list.innerHTML = '<div class="empty">No leads yet. Tap + to add one.</div>';
+    list.innerHTML = filter
+      ? `<div class="empty">No leads match "${escapeHTML(filter)}"</div>`
+      : '<div class="empty">No leads yet. Tap + to add one.</div>';
     return;
   }
 
@@ -1099,8 +1193,8 @@ function renderLeadsList() {
     html += today.map(leadCardHTML).join('');
   }
   if (older.length) {
-    html += '<p class="section-title">Previous days</p>';
-    html += older.slice(0, 50).map(leadCardHTML).join('');
+    html += `<p class="section-title">${filter ? 'Matches from previous days' : 'Previous days'}</p>`;
+    html += older.slice(0, filter ? 500 : 50).map(leadCardHTML).join('');
   }
   list.innerHTML = html;
   list.querySelectorAll('.lead-card').forEach(card => {
@@ -1114,6 +1208,11 @@ function renderLeadsList() {
     });
   });
 }
+
+document.getElementById('leads-search').addEventListener('input', e => {
+  leadsSearchTerm = e.target.value.toLowerCase().trim();
+  renderLeadsList();
+});
 function leadCardHTML(l) {
   const quote = calcQuote(l);
   const badge = statusBadge(l);
@@ -1126,7 +1225,7 @@ function leadCardHTML(l) {
     <div class="lead-meta">
       ${badge}
       ${l.rating ? `<span style="color:#94a3b8">${l.rating}/10</span>` : ''}
-      <span style="color:#64748b; margin-left:auto;">${shortDate(l.createdAt)}</span>
+      <span style="color:#64748b; margin-left:auto;">${shortDateTime(l.createdAt)}</span>
     </div>
   </div>`;
 }
@@ -1186,8 +1285,19 @@ document.getElementById('email-btn').addEventListener('click', () => {
   const text = document.getElementById('export-text').textContent;
   const subject = encodeURIComponent(`Dript doorknock ${todayLabel()}`);
   const body = encodeURIComponent(text);
-  // Gmail web compose — opens in Gmail app on iOS if installed & default, else Gmail web
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`, '_blank');
+  // Gmail iOS app deep link — opens directly in Gmail if installed
+  const appUrl = `googlegmail://co?subject=${subject}&body=${body}`;
+  const webUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+
+  // Try app first, fall back to web after a beat if it didn't launch
+  const start = Date.now();
+  window.location.href = appUrl;
+  setTimeout(() => {
+    // If we're still here after 1.5s, Gmail app didn't open — use web
+    if (Date.now() - start < 2000 && !document.hidden) {
+      window.open(webUrl, '_blank');
+    }
+  }, 1500);
 });
 
 // --------- SETTINGS ---------
@@ -1318,6 +1428,43 @@ function statsForDay(key) {
   return { doors: k.doors, convos: k.convos, quotes, booked, value };
 }
 
+function statsForMonth(year, month) {
+  // month is 0-indexed
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
+  let doors = 0, convos = 0;
+  for (const key of Object.keys(kpi)) {
+    if (key.startsWith(prefix)) {
+      doors += kpi[key].doors || 0;
+      convos += kpi[key].convos || 0;
+    }
+  }
+  const monthLeads = leads.filter(l => (l.dateKey || '').startsWith(prefix));
+  const quotes = monthLeads.filter(l => calcQuote(l) > 0).length;
+  const booked = monthLeads.filter(l => l.status === 'Booked').length;
+  const value = monthLeads.filter(l => l.status === 'Booked').reduce((s, l) => s + calcQuote(l), 0);
+  return { doors, convos, quotes, booked, value };
+}
+
+function hoursForMonth(year, month) {
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
+  let totalMs = 0;
+  for (const key of Object.keys(timeLog)) {
+    if (key.startsWith(prefix)) {
+      (timeLog[key] || []).forEach(s => {
+        if (s.start && s.end) totalMs += new Date(s.end).getTime() - new Date(s.start).getTime();
+      });
+    }
+  }
+  // Include active session if it started in this month
+  if (activeSession) {
+    const startKey = activeSession.start.slice(0, 10);
+    if (startKey.startsWith(prefix)) {
+      totalMs += Date.now() - new Date(activeSession.start).getTime();
+    }
+  }
+  return totalMs;
+}
+
 function renderCalendar() {
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('cal-month-label').textContent = `${monthNames[calMonth]} ${calYear}`;
@@ -1397,6 +1544,9 @@ function renderCalendar() {
 }
 
 function renderKPIStats() {
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  // --- DAY ---
   const stats = statsForDay(selectedDateKey);
   const [y, m, d] = selectedDateKey.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -1418,18 +1568,38 @@ function renderKPIStats() {
   document.getElementById('k-quotes-pct').textContent = pct(stats.quotes, stats.convos) + ' of convos';
   document.getElementById('k-booked-pct').textContent = pct(stats.booked, stats.quotes) + ' of quotes';
 
-  const ms = hoursForDay(selectedDateKey);
-  const hoursDisplay = ms > 0 ? formatDuration(ms) : '0h';
-  document.getElementById('k-hours').textContent = hoursDisplay;
-  const hoursDec = ms / 3600000;
-  const earned = stats.value * (settings.commission || 0) / 100;
-  const rate = (hoursDec > 0 && earned > 0) ? Math.round(earned / hoursDec) : 0;
-  document.getElementById('k-rate').textContent = rate > 0 ? '$' + rate.toLocaleString() : '–';
+  const dayMs = hoursForDay(selectedDateKey);
+  document.getElementById('k-hours').textContent = dayMs > 0 ? formatDuration(dayMs) : '0h';
+  const dayHoursDec = dayMs / 3600000;
+  const dayRate = (dayHoursDec > 0 && earnedDay > 0) ? Math.round(earnedDay / dayHoursDec) : 0;
+  document.getElementById('k-rate').textContent = dayRate > 0 ? '$' + dayRate.toLocaleString() : '–';
 
-  renderFunnel(stats);
+  renderFunnel(stats, 'funnel');
+
+  // --- MONTH ---
+  const mStats = statsForMonth(calYear, calMonth);
+  document.getElementById('kpi-month-label').textContent = `${monthNames[calMonth]} ${calYear}`;
+  document.getElementById('m-doors').textContent = mStats.doors;
+  document.getElementById('m-convos').textContent = mStats.convos;
+  document.getElementById('m-quotes').textContent = mStats.quotes;
+  document.getElementById('m-booked').textContent = mStats.booked;
+  document.getElementById('m-value').textContent = '$' + mStats.value.toLocaleString();
+  const earnedMonth = Math.round(mStats.value * (settings.commission || 0) / 100);
+  document.getElementById('m-earned').textContent = '$' + earnedMonth.toLocaleString();
+  document.getElementById('m-convos-pct').textContent = pct(mStats.convos, mStats.doors) + ' of doors';
+  document.getElementById('m-quotes-pct').textContent = pct(mStats.quotes, mStats.convos) + ' of convos';
+  document.getElementById('m-booked-pct').textContent = pct(mStats.booked, mStats.quotes) + ' of quotes';
+
+  const monthMs = hoursForMonth(calYear, calMonth);
+  document.getElementById('m-hours').textContent = monthMs > 0 ? formatDuration(monthMs) : '0h';
+  const monthHoursDec = monthMs / 3600000;
+  const monthRate = (monthHoursDec > 0 && earnedMonth > 0) ? Math.round(earnedMonth / monthHoursDec) : 0;
+  document.getElementById('m-rate').textContent = monthRate > 0 ? '$' + monthRate.toLocaleString() : '–';
+
+  renderFunnel(mStats, 'funnel-month');
 }
 
-function renderFunnel(s) {
+function renderFunnel(s, containerId) {
   const max = Math.max(s.doors, 1);
   const rows = [
     { name: 'Doors', val: s.doors, color: '#3b82f6' },
@@ -1437,14 +1607,12 @@ function renderFunnel(s) {
     { name: 'Quotes given', val: s.quotes, color: '#f59e0b', dropFrom: s.convos, dropLabel: 'convos' },
     { name: 'Booked', val: s.booked, color: '#22c55e', dropFrom: s.quotes, dropLabel: 'quotes' }
   ];
-  document.getElementById('funnel').innerHTML = rows.map(r => {
+  document.getElementById(containerId).innerHTML = rows.map(r => {
     const pct = Math.max((r.val / max) * 100, r.val > 0 ? 4 : 0);
     let drop = '';
-    if (r.dropFrom !== undefined) {
-      if (r.dropFrom > 0) {
-        const conv = Math.round((r.val / r.dropFrom) * 100);
-        drop = `<div class="funnel-drop">${conv}% conversion from ${r.dropLabel}</div>`;
-      }
+    if (r.dropFrom !== undefined && r.dropFrom > 0) {
+      const conv = Math.round((r.val / r.dropFrom) * 100);
+      drop = `<div class="funnel-drop">${conv}% from ${r.dropLabel}</div>`;
     }
     return `<div class="funnel-row">
       <div class="funnel-labels"><span class="name">${r.name}</span><span class="val">${r.val}</span></div>
@@ -1469,6 +1637,16 @@ document.getElementById('cal-prev').addEventListener('click', () => {
 document.getElementById('cal-next').addEventListener('click', () => {
   if (calMonth === 11) { calMonth = 0; calYear++; } else calMonth++;
   renderCalendar();
+});
+
+document.getElementById('kpi-add-lead').addEventListener('click', () => {
+  editingId = null;
+  currentLead = newLead(selectedDateKey);
+  loadLeadForm();
+  showView('lead');
+  if (selectedDateKey !== todayKey()) {
+    toast(`New lead for ${selectedDateKey}`);
+  }
 });
 
 // --------- CLOCK IN / OUT ---------
@@ -1542,6 +1720,21 @@ function hoursForDay(key) {
     totalMs += Date.now() - new Date(activeSession.start).getTime();
   }
   return totalMs;
+}
+
+function maybeAutoClockIn() {
+  if (activeSession) return; // Already clocked in
+  const today = todayKey();
+  // Check if there's already a lead today (either saved OR any session logged for today)
+  const hasLeadToday = leads.some(l => l.dateKey === today);
+  const hasSessionToday = (timeLog[today] || []).length > 0;
+  if (hasLeadToday || hasSessionToday) return; // Not the first lead of the day
+  // Auto clock-in
+  activeSession = { start: new Date().toISOString() };
+  saveJSON(STORE.activeSession, activeSession);
+  renderClockButton();
+  startClockTicker();
+  toast('Auto clocked in — first lead of the day');
 }
 
 // --------- EDIT HOURS MODAL ---------
