@@ -112,6 +112,41 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 .form-group textarea { min-height: 70px; resize: vertical; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* Input with copy-to-clipboard button */
+.input-with-copy { position: relative; }
+.input-with-copy input { padding-right: 68px; }
+.field-copy-btn {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  bottom: 5px;
+  background: #334155;
+  color: #cbd5e1;
+  border: none;
+  border-radius: 7px;
+  padding: 0 13px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.field-copy-btn:active { background: #475569; }
+.field-copy-btn.copied {
+  background: #14532d;
+  color: #86efac;
+}
+.field-copy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Services checkboxes */
 .services-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .service-chip {
@@ -171,24 +206,6 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
   cursor: pointer;
 }
 .status-btn.selected { background: #3b82f6; border-color: #3b82f6; color: white; }
-
-/* Photos */
-.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
-.photo-tile {
-  aspect-ratio: 1; background: #1e293b;
-  border: 1px dashed #475569; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; overflow: hidden; position: relative;
-}
-.photo-tile.add { color: #60a5fa; font-size: 24px; }
-.photo-tile img { width: 100%; height: 100%; object-fit: cover; }
-.photo-delete {
-  position: absolute; top: 4px; right: 4px;
-  background: rgba(0,0,0,0.7); color: white;
-  border: none; border-radius: 50%;
-  width: 22px; height: 22px; font-size: 14px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
 
 /* Leads list */
 .lead-card {
@@ -394,7 +411,10 @@ button.stat-mini:active { background: #334155; }
 <div class="view" id="view-lead">
   <div class="form-group">
     <label>Name</label>
-    <input type="text" id="f-name" autocomplete="off" placeholder="First and last">
+    <div class="input-with-copy">
+      <input type="text" id="f-name" autocomplete="off" placeholder="First and last">
+      <button type="button" class="field-copy-btn" data-copy-target="f-name" aria-label="Copy name">Copy</button>
+    </div>
   </div>
   <div class="form-group">
     <label>Address</label>
@@ -403,7 +423,10 @@ button.stat-mini:active { background: #334155; }
   <div class="form-row">
     <div class="form-group">
       <label>Phone</label>
-      <input type="tel" id="f-phone" autocomplete="off" placeholder="04...">
+      <div class="input-with-copy">
+        <input type="tel" id="f-phone" autocomplete="off" placeholder="04...">
+        <button type="button" class="field-copy-btn" data-copy-target="f-phone" aria-label="Copy phone">Copy</button>
+      </div>
     </div>
     <div class="form-group">
       <label>Rating</label>
@@ -424,7 +447,10 @@ button.stat-mini:active { background: #334155; }
   </div>
   <div class="form-group">
     <label>Email</label>
-    <input type="email" id="f-email" autocomplete="off" autocapitalize="none" placeholder="name@...">
+    <div class="input-with-copy">
+      <input type="email" id="f-email" autocomplete="off" autocapitalize="none" placeholder="name@...">
+      <button type="button" class="field-copy-btn" data-copy-target="f-email" aria-label="Copy email">Copy</button>
+    </div>
   </div>
 
   <p class="section-title">Services & quote</p>
@@ -471,12 +497,8 @@ button.stat-mini:active { background: #334155; }
     <textarea id="f-notes" placeholder="Anything else worth remembering..."></textarea>
   </div>
 
-  <p class="section-title">Photos</p>
-  <div class="photo-grid" id="photo-grid">
-    <div class="photo-tile add" id="add-photo">+</div>
-  </div>
-
   <button class="big-btn" id="save-lead" style="margin-top: 20px;">Save lead</button>
+  <button class="secondary-btn" id="abandon-lead" style="background: #7f1d1d; border-color: #991b1b; color: white; display: none;">Abandon lead</button>
   <button class="secondary-btn" id="delete-lead" style="background: #7f1d1d; border-color: #991b1b; color: white; display: none;">Delete lead</button>
 </div>
 
@@ -613,6 +635,7 @@ button.stat-mini:active { background: #334155; }
   <button class="secondary-btn" id="export-all">Export all leads (JSON backup)</button>
   <button class="secondary-btn" id="import-backup">Import backup (JSON)</button>
   <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
+  <button class="secondary-btn" id="strip-photos">Remove photos from all leads (free storage)</button>
   <button class="secondary-btn" id="clear-old" style="background: #7f1d1d; border-color: #991b1b; color: white;">Clear leads older than 30 days</button>
 
   <p style="text-align:center; color:#475569; font-size:11px; margin-top:24px;">Dript Doorknocker · v12</p>
@@ -669,26 +692,6 @@ button.stat-mini:active { background: #334155; }
   </div>
 </div>
 
-<!-- CAMERA MODAL -->
-<div id="camera-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:#000; flex-direction:column;">
-  <!-- Top bar with X and Done -->
-  <div style="display:flex; align-items:center; justify-content:space-between; padding: calc(env(safe-area-inset-top) + 12px) 16px 12px; background: rgba(0,0,0,0.5); position:relative; z-index:2;">
-    <button id="cam-cancel" style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.15); color:white; border:none; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>
-    <div id="cam-count" style="color:white; font-size:14px; font-weight:500;">0 photos</div>
-    <button id="cam-done" style="min-width:60px; height:40px; border-radius:20px; background:#22c55e; color:white; border:none; font-size:15px; font-weight:600; cursor:pointer; padding: 0 16px;">Done</button>
-  </div>
-  <!-- Video area -->
-  <video id="camera-video" autoplay playsinline muted style="flex:1; width:100%; object-fit:cover; background:#000; min-height:0;"></video>
-  <!-- Thumbnail strip -->
-  <div id="camera-shot-strip" style="display:flex; gap:8px; padding:10px 12px; overflow-x:auto; background:#000; min-height:70px; align-items:center;"></div>
-  <!-- Shutter -->
-  <div style="display:flex; align-items:center; justify-content:center; padding: 14px 20px calc(env(safe-area-inset-bottom) + 20px); background:#000;">
-    <button id="cam-shutter" style="width:72px; height:72px; border-radius:50%; background:white; border:4px solid #333; box-shadow:inset 0 0 0 4px #000; cursor:pointer;"></button>
-  </div>
-</div>
-
-<canvas id="camera-canvas" style="display:none;"></canvas>
-
 <script>
 // --------- STORAGE ---------
 const STORE = {
@@ -696,7 +699,8 @@ const STORE = {
   kpi: 'dript_kpi',
   settings: 'dript_settings',
   timeLog: 'dript_timelog',
-  activeSession: 'dript_active_session'
+  activeSession: 'dript_active_session',
+  draftLead: 'dript_draft_lead'
 };
 const DEFAULT_SETTINGS = {
   commission: 20, roof: 900, house: 700, pressure: 250,
@@ -761,15 +765,53 @@ function newLead(overrideDateKey) {
     services: {}, // { roof: {qty, price}, ... }
     manualQuote: null,
     status: '', booking: '', notes: '',
-    rating: '', photos: [],
+    rating: '',
     createdAt: createdAt,
     dateKey: targetDate
   };
 }
 
+// --------- DRAFT LEAD (in-progress new lead persistence) ---------
+// A draft is only kept for NEW leads (editingId === null). It's cleared on
+// successful save or explicit abandon. This means data survives navigating
+// away, closing the app, phone locking, etc.
+let draftSaveTimer = null;
+function saveDraftNow() {
+  if (editingId) return; // only draft new leads, never in-progress edits
+  if (!currentLead) return;
+  try {
+    saveJSON(STORE.draftLead, {
+      lead: currentLead,
+      pricingMode: pricingMode,
+      savedAt: Date.now()
+    });
+  } catch { /* quota — ignore, user still has in-memory copy */ }
+}
+function scheduleDraftSave() {
+  if (editingId) return;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraftNow, 300);
+}
+function loadDraft() {
+  const raw = loadJSON(STORE.draftLead, null);
+  if (!raw) return null;
+  // Guard against future shape changes
+  if (raw.lead && typeof raw.lead === 'object') return raw;
+  return null;
+}
+function clearDraft() {
+  clearTimeout(draftSaveTimer);
+  localStorage.removeItem(STORE.draftLead);
+}
+
 // --------- VIEW SWITCHING ---------
 const views = ['home', 'lead', 'leads', 'export', 'settings', 'kpi'];
 function showView(name) {
+  // If we're leaving the lead form mid-edit, flush the draft immediately (no debounce)
+  const wasOnLead = document.getElementById('view-lead').classList.contains('active');
+  if (wasOnLead && name !== 'lead' && !editingId && currentLead) {
+    saveDraftNow();
+  }
   views.forEach(v => document.getElementById('view-'+v).classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -792,10 +834,19 @@ document.getElementById('back-btn').addEventListener('click', () => showView('ho
 document.getElementById('settings-btn').addEventListener('click', () => { loadSettingsForm(); showView('settings'); });
 document.getElementById('new-lead-btn').addEventListener('click', () => {
   editingId = null;
-  currentLead = newLead();
+  const draft = loadDraft();
+  if (draft) {
+    currentLead = draft.lead;
+    pricingMode = draft.pricingMode || 'fixed';
+    document.getElementById('mode-fixed').classList.toggle('active', pricingMode === 'fixed');
+    document.getElementById('mode-sqm').classList.toggle('active', pricingMode === 'sqm');
+  } else {
+    currentLead = newLead();
+  }
   maybeAutoClockIn();
   loadLeadForm();
   showView('lead');
+  if (draft) toast('Resumed unsaved lead');
 });
 document.getElementById('view-leads-btn').addEventListener('click', () => showView('leads'));
 document.getElementById('view-export-btn').addEventListener('click', () => showView('export'));
@@ -913,6 +964,7 @@ function renderServiceDetails() {
         }
       }
       updateQuoteDisplay();
+      scheduleDraftSave();
     });
   });
 }
@@ -937,6 +989,7 @@ document.getElementById('services-grid').querySelectorAll('.service-chip').forEa
     }
     renderServiceDetails();
     updateQuoteDisplay();
+    scheduleDraftSave();
   });
 });
 
@@ -948,6 +1001,7 @@ document.getElementById('mode-fixed').addEventListener('click', () => {
   if (currentLead.services.roof) currentLead.services.roof = { price: settings.roof };
   if (currentLead.services.pressure) currentLead.services.pressure = { price: settings.pressure };
   renderServiceDetails(); updateQuoteDisplay();
+  scheduleDraftSave();
 });
 document.getElementById('mode-sqm').addEventListener('click', () => {
   pricingMode = 'sqm';
@@ -956,6 +1010,7 @@ document.getElementById('mode-sqm').addEventListener('click', () => {
   if (currentLead.services.roof) currentLead.services.roof = { price: 0, qty: '', storeys: 1 };
   if (currentLead.services.pressure) currentLead.services.pressure = { price: 0, qty: '', rate: settings.pressureSqm };
   renderServiceDetails(); updateQuoteDisplay();
+  scheduleDraftSave();
 });
 
 // Status buttons
@@ -965,6 +1020,7 @@ document.querySelectorAll('#view-lead .status-btn').forEach(btn => {
     btn.classList.add('selected');
     currentLead.status = btn.dataset.status;
     document.getElementById('booking-date-wrap').style.display = (currentLead.status === 'Booked') ? 'block' : 'none';
+    scheduleDraftSave();
   });
 });
 
@@ -972,12 +1028,57 @@ document.querySelectorAll('#view-lead .status-btn').forEach(btn => {
 document.getElementById('f-manual-quote').addEventListener('input', e => {
   currentLead.manualQuote = e.target.value === '' ? null : e.target.value;
   updateQuoteDisplay();
+  scheduleDraftSave();
 });
 
 // Simple field bindings
 ['name', 'address', 'phone', 'email', 'notes', 'rating', 'booking'].forEach(field => {
   const el = document.getElementById('f-' + field);
-  el.addEventListener('input', e => { currentLead[field] = e.target.value; });
+  el.addEventListener('input', e => {
+    currentLead[field] = e.target.value;
+    scheduleDraftSave();
+  });
+});
+
+// --------- COPY-TO-CLIPBOARD BUTTONS ---------
+async function copyToClipboard(text) {
+  if (!text) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback for older iOS / non-secure contexts
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch { return false; }
+  }
+}
+
+document.querySelectorAll('.field-copy-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const targetId = btn.dataset.copyTarget;
+    const input = document.getElementById(targetId);
+    if (!input) return;
+    const value = (input.value || '').trim();
+    if (!value) { toast('Nothing to copy'); return; }
+    const ok = await copyToClipboard(value);
+    if (!ok) { toast('Copy failed'); return; }
+    // Brief visual confirmation
+    btn.classList.add('copied');
+    btn.textContent = '✓';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.textContent = 'Copy';
+    }, 900);
+  });
 });
 
 function loadLeadForm() {
@@ -999,131 +1100,10 @@ function loadLeadForm() {
   });
   document.getElementById('booking-date-wrap').style.display = (currentLead.status === 'Booked') ? 'block' : 'none';
   document.getElementById('delete-lead').style.display = editingId ? 'block' : 'none';
+  document.getElementById('abandon-lead').style.display = editingId ? 'none' : 'block';
   renderServiceDetails();
   updateQuoteDisplay();
-  renderPhotos();
 }
-
-// --------- PHOTOS ---------
-function renderPhotos() {
-  const grid = document.getElementById('photo-grid');
-  // Remove all except add tile
-  Array.from(grid.querySelectorAll('.photo-tile:not(.add)')).forEach(el => el.remove());
-  (currentLead.photos || []).forEach((src, idx) => {
-    const tile = document.createElement('div');
-    tile.className = 'photo-tile';
-    tile.innerHTML = `<img src="${src}"><button class="photo-delete" data-idx="${idx}">×</button>`;
-    grid.insertBefore(tile, document.getElementById('add-photo'));
-  });
-  grid.querySelectorAll('.photo-delete').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      currentLead.photos.splice(Number(btn.dataset.idx), 1);
-      renderPhotos();
-    });
-  });
-}
-document.getElementById('add-photo').addEventListener('click', openCamera);
-
-// --------- CAMERA MODAL ---------
-let cameraStream = null;
-let cameraShots = []; // temp buffer of dataURLs taken this session
-
-async function openCamera() {
-  cameraShots = [];
-  renderShotStrip();
-  const modal = document.getElementById('camera-modal');
-  modal.style.display = 'flex';
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: false
-    });
-    document.getElementById('camera-video').srcObject = cameraStream;
-  } catch (err) {
-    modal.style.display = 'none';
-    toast('Camera access denied');
-  }
-}
-
-function closeCamera() {
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
-  }
-  document.getElementById('camera-modal').style.display = 'none';
-  document.getElementById('camera-video').srcObject = null;
-}
-
-function renderShotStrip() {
-  const strip = document.getElementById('camera-shot-strip');
-  const count = cameraShots.length;
-  document.getElementById('cam-count').textContent = count === 0 ? 'No photos yet' : `${count} photo${count > 1 ? 's' : ''}`;
-  if (count === 0) {
-    strip.innerHTML = '<div style="color:#666; font-size:12px; padding:0 8px;">Tap shutter to add photos</div>';
-    return;
-  }
-  strip.innerHTML = cameraShots.map((src, i) =>
-    `<div style="position:relative; flex:0 0 auto;">
-      <img src="${src}" style="width:54px; height:54px; object-fit:cover; border-radius:6px; border:1px solid #333;">
-      <button data-idx="${i}" class="shot-remove" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:#dc2626; color:white; border:none; font-size:14px; cursor:pointer; padding:0; line-height:1; display:flex; align-items:center; justify-content:center;">×</button>
-    </div>`
-  ).join('');
-  strip.querySelectorAll('.shot-remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      cameraShots.splice(Number(btn.dataset.idx), 1);
-      renderShotStrip();
-    });
-  });
-}
-
-document.getElementById('cam-shutter').addEventListener('click', () => {
-  const btn = document.getElementById('cam-shutter');
-  if (btn.disabled) return;
-  btn.disabled = true;
-
-  const video = document.getElementById('camera-video');
-  const canvas = document.getElementById('camera-canvas');
-  if (!video.videoWidth) {
-    btn.disabled = false;
-    return;
-  }
-  try {
-    // Cap at 1200px for storage
-    const maxDim = 1200;
-    let w = video.videoWidth, h = video.videoHeight;
-    if (w > h && w > maxDim) { h = h * (maxDim / w); w = maxDim; }
-    else if (h > maxDim) { w = w * (maxDim / h); h = maxDim; }
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-    cameraShots.push(canvas.toDataURL('image/jpeg', 0.7));
-    renderShotStrip();
-    if (navigator.vibrate) navigator.vibrate(20);
-    // Flash effect
-    const modal = document.getElementById('camera-modal');
-    const flash = document.createElement('div');
-    flash.style.cssText = 'position:absolute; inset:0; background:white; z-index:1001; pointer-events:none; opacity:0.6; transition: opacity 0.15s;';
-    modal.appendChild(flash);
-    setTimeout(() => { flash.style.opacity = 0; setTimeout(() => flash.remove(), 200); }, 30);
-  } catch (err) {
-    toast('Photo capture failed');
-  }
-  // Re-enable after brief cooldown to prevent double-tap crashes
-  setTimeout(() => { btn.disabled = false; }, 250);
-});
-
-document.getElementById('cam-done').addEventListener('click', () => {
-  currentLead.photos = currentLead.photos || [];
-  currentLead.photos.push(...cameraShots);
-  closeCamera();
-  renderPhotos();
-  if (cameraShots.length) toast(`Added ${cameraShots.length} photo${cameraShots.length > 1 ? 's' : ''}`);
-});
-
-document.getElementById('cam-cancel').addEventListener('click', () => {
-  if (cameraShots.length && !confirm('Discard photos taken this session?')) return;
-  closeCamera();
-});
 
 // --------- SAVE LEAD ---------
 document.getElementById('save-lead').addEventListener('click', () => {
@@ -1138,6 +1118,7 @@ document.getElementById('save-lead').addEventListener('click', () => {
       leads.push(currentLead);
     }
     localStorage.setItem(STORE.leads, JSON.stringify(leads));
+    if (!editingId) clearDraft(); // successful save of a new lead — draft no longer needed
     toast(editingId ? 'Lead updated' : 'Lead saved');
     editingId = null;
     showView('home');
@@ -1160,6 +1141,15 @@ document.getElementById('delete-lead').addEventListener('click', () => {
   editingId = null;
   toast('Lead deleted');
   showView('leads');
+});
+
+document.getElementById('abandon-lead').addEventListener('click', () => {
+  if (editingId) return; // safety — this button is only for new-lead flow
+  if (!confirm('Abandon this lead? The details will be discarded.')) return;
+  clearDraft();
+  currentLead = null;
+  toast('Lead abandoned');
+  showView('home');
 });
 
 // --------- LEADS LIST ---------
@@ -1384,6 +1374,30 @@ document.getElementById('import-file').addEventListener('change', (e) => {
   };
   reader.readAsText(file);
 });
+
+document.getElementById('strip-photos').addEventListener('click', () => {
+  const withPhotos = leads.filter(l => Array.isArray(l.photos) && l.photos.length > 0);
+  const photoCount = withPhotos.reduce((sum, l) => sum + l.photos.length, 0);
+
+  if (photoCount === 0) {
+    toast('No photos to remove');
+    return;
+  }
+
+  const msg = `Remove ${photoCount} photo${photoCount > 1 ? 's' : ''} from ${withPhotos.length} lead${withPhotos.length > 1 ? 's' : ''}?\n\n` +
+              `All lead data — names, quotes, bookings, calendar totals — will be kept. Only the photos will be deleted. This cannot be undone.`;
+
+  if (!confirm(msg)) return;
+
+  leads.forEach(l => { if (l.photos) delete l.photos; });
+  try {
+    saveJSON(STORE.leads, leads);
+    toast(`Removed ${photoCount} photo${photoCount > 1 ? 's' : ''} — storage freed`);
+  } catch (err) {
+    toast('Save failed — try again');
+  }
+});
+
 document.getElementById('clear-old').addEventListener('click', () => {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
@@ -1643,6 +1657,34 @@ document.getElementById('cal-next').addEventListener('click', () => {
 
 document.getElementById('kpi-add-lead').addEventListener('click', () => {
   editingId = null;
+  const draft = loadDraft();
+  if (draft && draft.lead.dateKey === selectedDateKey) {
+    // Draft matches the date they're adding for — just resume
+    currentLead = draft.lead;
+    pricingMode = draft.pricingMode || 'fixed';
+    document.getElementById('mode-fixed').classList.toggle('active', pricingMode === 'fixed');
+    document.getElementById('mode-sqm').classList.toggle('active', pricingMode === 'sqm');
+    loadLeadForm();
+    showView('lead');
+    toast('Resumed unsaved lead');
+    return;
+  }
+  if (draft) {
+    // Draft is for a different date — ask before discarding
+    const dLabel = draft.lead.dateKey === todayKey() ? 'today' : draft.lead.dateKey;
+    if (!confirm(`You have an unsaved lead in progress for ${dLabel}. Discard it and start a new one for ${selectedDateKey}?`)) {
+      // Resume the existing draft instead
+      currentLead = draft.lead;
+      pricingMode = draft.pricingMode || 'fixed';
+      document.getElementById('mode-fixed').classList.toggle('active', pricingMode === 'fixed');
+      document.getElementById('mode-sqm').classList.toggle('active', pricingMode === 'sqm');
+      loadLeadForm();
+      showView('lead');
+      toast('Resumed unsaved lead');
+      return;
+    }
+    clearDraft();
+  }
   currentLead = newLead(selectedDateKey);
   loadLeadForm();
   showView('lead');
@@ -1838,6 +1880,14 @@ function toast(msg) {
 renderHome();
 renderClockButton();
 startClockTicker();
+
+// Safety net: flush draft if the tab is hidden or backgrounded (iOS may kill it)
+window.addEventListener('pagehide', () => {
+  if (!editingId && currentLead) saveDraftNow();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !editingId && currentLead) saveDraftNow();
+});
 </script>
 </body>
 </html>
