@@ -127,6 +127,7 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
   letter-spacing: 2px; text-transform: uppercase;
 }
 .big-btn:active { background: var(--accent-dim); }
+.big-btn:disabled { opacity: .4; }
 .secondary-btn {
   width: 100%; padding: 12px; border: 1px solid var(--border-mid);
   background: transparent; color: var(--text);
@@ -335,6 +336,40 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 }
 .section-title:first-child { margin-top: 0; }
 input[type="file"] { display: none; }
+
+/* Booking picker: one tap each for day, time and length */
+.bp-summary {
+  background: var(--card); border: 1px solid var(--border-mid); border-radius: 4px;
+  padding: 12px; font-size: 15px; font-weight: 500; text-align: center; margin-bottom: 10px;
+}
+.bp-summary.set { border-color: var(--accent); color: var(--accent); }
+.bp-summary .bp-old { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+.bp-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 10px 0 6px; }
+.bp-days { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.bp-days::-webkit-scrollbar { display: none; }
+.bp-day {
+  flex: 0 0 64px; scroll-snap-align: start; padding: 8px 4px; text-align: center;
+  background: var(--card); border: 1px solid var(--border-mid); border-radius: 4px; cursor: pointer;
+}
+.bp-day .dow { font-size: 10px; color: var(--muted-strong); text-transform: uppercase; letter-spacing: 1px; }
+.bp-day .dom { font-size: 18px; font-weight: 600; margin: 2px 0; }
+.bp-day .mon { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+.bp-day.selected { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.bp-day.selected .dow, .bp-day.selected .mon { color: var(--bg); }
+.bp-times, .bp-lengths { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.bp-chip {
+  padding: 11px 2px; text-align: center; background: var(--card); border: 1px solid var(--border-mid);
+  border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text);
+}
+.bp-chip.selected { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.bp-more { grid-column: 1 / -1; font-size: 11px; color: var(--muted-strong); background: none; border: none; padding: 6px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+.bp-clear { background: none; border: none; color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 8px 0 0; cursor: pointer; }
+
+/* Send to agent */
+.agent-box { background: var(--card); border-radius: 4px; padding: 14px; margin-bottom: 14px; }
+.agent-count { font-size: 28px; font-weight: 600; color: var(--accent); }
+.agent-sub { font-size: 12px; color: var(--muted-strong); margin: 2px 0 12px; }
+.agent-last { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* Toast */
 .toast {
@@ -688,8 +723,15 @@ button.stat-mini:active { background: var(--card-active); }
   </div>
 
   <div class="form-group" style="margin-top: 14px;" id="booking-date-wrap">
-    <label>Booking date &amp; time</label>
-    <input type="text" id="f-booking" placeholder="e.g. Tue Aug 6th 8:30am">
+    <label>Booking</label>
+    <div class="bp-summary" id="bp-summary">Pick a day, time and length</div>
+    <div class="bp-label">Day</div>
+    <div class="bp-days" id="bp-days"></div>
+    <div class="bp-label">Time</div>
+    <div class="bp-times" id="bp-times"></div>
+    <div class="bp-label">Length</div>
+    <div class="bp-lengths" id="bp-lengths"></div>
+    <button type="button" class="bp-clear" id="bp-clear">Clear booking</button>
   </div>
 
   <div class="form-group">
@@ -842,6 +884,16 @@ button.stat-mini:active { background: var(--card-active); }
     </div>
   </div>
 
+  <p class="section-title">Send to agent</p>
+  <div class="form-group">
+    <label>Your name</label>
+    <input type="text" id="s-rep-name" autocomplete="off" placeholder="First and last">
+  </div>
+  <div class="form-group">
+    <label>Entry code</label>
+    <input type="password" id="s-agent-code" autocomplete="off" autocapitalize="none" placeholder="From the office">
+  </div>
+
   <button class="big-btn" id="save-settings">SAVE SETTINGS</button>
 
   <p class="section-title" style="margin-top: 24px;">Export</p>
@@ -854,11 +906,20 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V13</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V14</p>
 </div>
 
 <!-- EXPORT TRACKER -->
 <div class="view" id="view-export">
+  <p class="section-title">Send to agent</p>
+  <div class="agent-box">
+    <div class="agent-count" id="agent-count">0</div>
+    <div class="agent-sub" id="agent-sub">leads ready to send</div>
+    <button class="big-btn" id="agent-send" style="margin-bottom:8px;">SEND TO AGENT</button>
+    <button class="secondary-btn" id="agent-save-file" style="margin-bottom:0;">SAVE FILE INSTEAD</button>
+    <div class="agent-last" id="agent-last"></div>
+  </div>
+
   <p class="section-title">Paste-ready tracker block</p>
   <div class="export-box" id="export-text">–</div>
   <button class="big-btn" id="copy-btn">COPY TO CLIPBOARD</button>
@@ -1321,9 +1382,137 @@ document.getElementById('f-manual-quote').addEventListener('input', e => {
 });
 
 // Simple field bindings
-['name', 'address', 'phone', 'email', 'notes', 'rating', 'booking'].forEach(field => {
+['name', 'address', 'phone', 'email', 'notes', 'rating'].forEach(field => {
   const el = document.getElementById('f-' + field);
   el.addEventListener('input', e => { currentLead[field] = e.target.value; });
+});
+
+// --------- BOOKING PICKER ---------
+// Day, time and length are one tap each. Saves the exact time (bookingStart, ISO) for the agent,
+// and a readable label in `booking` for the tracker export.
+const BP_LENGTHS = [[60, '1h'], [90, '1.5h'], [120, '2h'], [180, '3h'], [240, '4h'], [300, '5h'], [360, '6h'], [480, 'Full day']];
+const BP_DEFAULT_MINS = 120;
+let bpSel = { day: '', time: '', mins: BP_DEFAULT_MINS };
+let bpAllTimes = false;
+
+function bpDayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function bpTimeLabel(t) {
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')}${h < 12 ? 'am' : 'pm'}`;
+}
+function bpLengthLabel(mins) {
+  const found = BP_LENGTHS.find(x => x[0] === mins);
+  return found ? found[1] : `${mins / 60}h`;
+}
+
+function bpLoad(lead) {
+  bpAllTimes = false;
+  if (lead.bookingStart) {
+    const d = new Date(lead.bookingStart);
+    bpSel = {
+      day: bpDayKey(d),
+      time: `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`,
+      mins: lead.bookingDurationMin || BP_DEFAULT_MINS
+    };
+  } else {
+    bpSel = { day: '', time: '', mins: BP_DEFAULT_MINS };
+  }
+  renderBookingPicker(true);
+}
+
+function bpCommit() {
+  if (bpSel.day && bpSel.time) {
+    const [y, mo, da] = bpSel.day.split('-').map(Number);
+    const [h, mi] = bpSel.time.split(':').map(Number);
+    const start = new Date(y, mo - 1, da, h, mi);
+    currentLead.bookingStart = start.toISOString();
+    currentLead.bookingDurationMin = bpSel.mins;
+    currentLead.booking = `${start.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · ${bpTimeLabel(bpSel.time)} · ${bpLengthLabel(bpSel.mins)}`;
+  }
+  renderBookingPicker(false);
+}
+
+function renderBookingPicker(scrollToSelected) {
+  const summary = document.getElementById('bp-summary');
+  const done = bpSel.day && bpSel.time;
+  summary.classList.toggle('set', !!done);
+  if (done) {
+    summary.textContent = currentLead.booking;
+  } else {
+    const need = [!bpSel.day && 'day', !bpSel.time && 'time'].filter(Boolean).join(' and ');
+    const old = currentLead.booking && !currentLead.bookingStart
+      ? `<span class="bp-old">Previously typed: ${escapeHTML(currentLead.booking)}</span>` : '';
+    summary.innerHTML = `Pick a ${need}${old}`;
+  }
+
+  // Next 4 weeks, plus the booked day if it falls outside that.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 0; i < 28; i++) { const d = new Date(today); d.setDate(today.getDate() + i); days.push(d); }
+  if (bpSel.day && !days.some(d => bpDayKey(d) === bpSel.day)) {
+    const [y, m, dd] = bpSel.day.split('-').map(Number);
+    days.unshift(new Date(y, m - 1, dd));
+  }
+  const daysEl = document.getElementById('bp-days');
+  const scroll = daysEl.scrollLeft;
+  daysEl.innerHTML = days.map(d => {
+    const key = bpDayKey(d);
+    const diff = Math.round((d - today) / 86400000);
+    const dow = diff === 0 ? 'Today' : diff === 1 ? 'Tmrw' : d.toLocaleDateString('en-AU', { weekday: 'short' });
+    return `<div class="bp-day${key === bpSel.day ? ' selected' : ''}" data-day="${key}">
+      <div class="dow">${dow}</div><div class="dom">${d.getDate()}</div>
+      <div class="mon">${d.toLocaleDateString('en-AU', { month: 'short' })}</div></div>`;
+  }).join('');
+  daysEl.scrollLeft = scroll;
+  if (scrollToSelected) {
+    const sel = daysEl.querySelector('.bp-day.selected');
+    daysEl.scrollLeft = sel ? sel.offsetLeft - daysEl.offsetLeft - 8 : 0;
+  }
+
+  // 7am–5pm by default; "More times" opens 5am–8pm.
+  const times = [];
+  const from = bpAllTimes ? 5 : 7, to = bpAllTimes ? 20 : 17;
+  for (let h = from; h <= to; h++) {
+    times.push(`${String(h).padStart(2,'0')}:00`);
+    if (h < to) times.push(`${String(h).padStart(2,'0')}:30`);
+  }
+  if (bpSel.time && !times.includes(bpSel.time)) { times.push(bpSel.time); times.sort(); }
+  document.getElementById('bp-times').innerHTML =
+    times.map(t => `<div class="bp-chip${t === bpSel.time ? ' selected' : ''}" data-time="${t}">${bpTimeLabel(t)}</div>`).join('') +
+    `<button type="button" class="bp-more" id="bp-more">${bpAllTimes ? 'Fewer times' : 'More times (early / late)'}</button>`;
+
+  document.getElementById('bp-lengths').innerHTML = BP_LENGTHS
+    .map(([mins, label]) => `<div class="bp-chip${mins === bpSel.mins ? ' selected' : ''}" data-mins="${mins}">${label}</div>`)
+    .join('');
+}
+
+document.getElementById('bp-days').addEventListener('click', e => {
+  const el = e.target.closest('.bp-day');
+  if (!el) return;
+  bpSel.day = el.dataset.day;
+  bpCommit();
+});
+document.getElementById('bp-times').addEventListener('click', e => {
+  if (e.target.id === 'bp-more') { bpAllTimes = !bpAllTimes; renderBookingPicker(false); return; }
+  const el = e.target.closest('.bp-chip');
+  if (!el) return;
+  bpSel.time = el.dataset.time;
+  bpCommit();
+});
+document.getElementById('bp-lengths').addEventListener('click', e => {
+  const el = e.target.closest('.bp-chip');
+  if (!el) return;
+  bpSel.mins = Number(el.dataset.mins);
+  bpCommit();
+});
+document.getElementById('bp-clear').addEventListener('click', () => {
+  bpSel = { day: '', time: '', mins: BP_DEFAULT_MINS };
+  delete currentLead.bookingStart;
+  delete currentLead.bookingDurationMin;
+  currentLead.booking = '';
+  renderBookingPicker(false);
 });
 
 // Date-logged
@@ -1376,7 +1565,7 @@ function loadLeadForm() {
   document.getElementById('f-email').value = currentLead.email || '';
   document.getElementById('f-notes').value = currentLead.notes || '';
   document.getElementById('f-rating').value = currentLead.rating || '';
-  document.getElementById('f-booking').value = currentLead.booking || '';
+  bpLoad(currentLead);
   document.getElementById('f-manual-quote').value = currentLead.manualQuote || '';
   document.querySelectorAll('#services-grid .service-chip').forEach(chip => {
     chip.classList.toggle('active', !!currentLead.services[chip.dataset.svc]);
@@ -1410,7 +1599,8 @@ document.getElementById('save-lead').addEventListener('click', () => {
       leads.push(currentLead);
     }
     localStorage.setItem(STORE.leads, JSON.stringify(leads));
-    toast(editingId ? 'Lead updated' : 'Lead saved');
+    if (currentLead.status === 'Booked' && !currentLead.bookingStart) toast('Saved — but no booking time picked');
+    else toast(editingId ? 'Lead updated' : 'Lead saved');
     editingId = null;
     currentLead = null;
     showView('home');
@@ -1599,8 +1789,104 @@ function statusBadge(l) {
   return `<span class="lead-badge ${cls}">${s}</span>`;
 }
 
+// --------- SEND TO AGENT ---------
+// Sends every lead not yet sent (from the day this version was first opened) to the office agent,
+// through a Google Apps Script that saves them into the agent's Google Drive inbox.
+const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
+const APP_VERSION = 'V14';
+if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
+
+function unsentLeads() {
+  return leads.filter(l => !l.sentToAgentAt && (l.dateKey || '') >= settings.agentSince);
+}
+
+function buildAgentExport(list) {
+  const pick = ['id', 'name', 'address', 'phone', 'email', 'services', 'manualQuote', 'status',
+    'booking', 'bookingStart', 'bookingDurationMin', 'notes', 'rating', 'createdAt', 'dateKey'];
+  return {
+    source: 'dript-app',
+    appVersion: APP_VERSION,
+    exportId: 'x' + Date.now() + Math.random().toString(36).slice(2, 8),
+    repName: settings.repName,
+    exportedAt: new Date().toISOString(),
+    leads: list.map(l => Object.fromEntries(pick.filter(k => l[k] !== undefined).map(k => [k, l[k]]))) // no photos
+  };
+}
+
+function markSent(list) {
+  const at = new Date().toISOString();
+  const ids = new Set(list.map(l => l.id));
+  leads.forEach(l => { if (ids.has(l.id)) l.sentToAgentAt = at; });
+  settings.agentLastSent = at;
+  saveJSON(STORE.leads, leads);
+  saveJSON(STORE.settings, settings);
+}
+
+function renderAgentBox() {
+  const n = unsentLeads().length;
+  document.getElementById('agent-count').textContent = n;
+  document.getElementById('agent-sub').textContent = n === 1 ? 'lead ready to send' : 'leads ready to send';
+  document.getElementById('agent-send').disabled = n === 0;
+  document.getElementById('agent-last').textContent = settings.agentLastSent
+    ? `Last sent ${shortDateTime(settings.agentLastSent)}` : '';
+}
+
+function agentReady() {
+  if (!settings.repName) { toast('Add your name in Settings first'); return false; }
+  if (!unsentLeads().length) { toast('Nothing new to send'); return false; }
+  return true;
+}
+
+document.getElementById('agent-send').addEventListener('click', async () => {
+  if (!agentReady()) return;
+  if (!settings.agentCode) return toast('Add the entry code in Settings first');
+  if (AGENT_URL.startsWith('PASTE')) return toast('Agent not set up yet — use Save file instead');
+  const btn = document.getElementById('agent-send');
+  const list = unsentLeads();
+  btn.disabled = true; btn.textContent = 'SENDING…';
+  try {
+    // Plain-text body avoids a CORS preflight, which Apps Script can't answer.
+    const res = await fetch(AGENT_URL, { method: 'POST', body: JSON.stringify({ ...buildAgentExport(list), code: settings.agentCode }) });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'Rejected');
+    markSent(list);
+    toast(`Sent ${list.length} lead${list.length === 1 ? '' : 's'} to the agent`);
+  } catch (err) {
+    toast(/code/i.test(String(err)) ? 'Wrong entry code — check Settings' : 'Couldn’t send — check signal and try again. Nothing lost.');
+  } finally {
+    btn.textContent = 'SEND TO AGENT';
+    renderAgentBox();
+  }
+});
+
+// Backup route: save the same file and put it in the D2D Agent → inbox folder in Google Drive.
+document.getElementById('agent-save-file').addEventListener('click', async () => {
+  if (!agentReady()) return;
+  const list = unsentLeads();
+  const data = buildAgentExport(list);
+  const name = `${settings.repName.replace(/[^a-z0-9]+/gi, '-')}_${todayKey()}_${Date.now()}.json`;
+  const file = new File([JSON.stringify(data, null, 2)], name, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name });
+    } else {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.click();
+      URL.revokeObjectURL(url);
+    }
+    if (confirm(`Did you save it into D2D Agent → inbox?\n\nTap OK to mark these ${list.length} leads as sent.`)) {
+      markSent(list);
+      renderAgentBox();
+    }
+  } catch (err) {
+    if (err && err.name !== 'AbortError') toast('Couldn’t save the file');
+  }
+});
+
 // --------- EXPORT ---------
 function renderExport() {
+  renderAgentBox();
   const today = leads.filter(l => l.dateKey === todayKey())
     .sort((a,b) => statusWeight(b) - statusWeight(a));
   const rows = today.map(leadToTSVRow).join('\n');
@@ -1657,9 +1943,14 @@ function loadSettingsForm() {
   document.getElementById('s-sqm1').value = settings.sqm1;
   document.getElementById('s-sqm2').value = settings.sqm2;
   document.getElementById('s-pressuresqm').value = settings.pressureSqm;
+  document.getElementById('s-rep-name').value = settings.repName || '';
+  document.getElementById('s-agent-code').value = settings.agentCode || '';
 }
 document.getElementById('save-settings').addEventListener('click', () => {
   settings = {
+    ...settings, // keeps values set elsewhere, e.g. agentSince
+    repName: document.getElementById('s-rep-name').value.trim(),
+    agentCode: document.getElementById('s-agent-code').value.trim(),
     monthlyGoal: Number(document.getElementById('s-monthly-goal').value) || 22700,
     commission: Number(document.getElementById('s-commission').value) || 0,
     roof: Number(document.getElementById('s-roof').value) || 0,
