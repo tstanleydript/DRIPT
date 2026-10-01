@@ -717,6 +717,7 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="service-chip" data-svc="solar">Solar panels</div>
     <div class="service-chip" data-svc="house">House wash</div>
     <div class="service-chip" data-svc="pressure">Pressure wash</div>
+    <div class="service-chip" data-svc="window">Window clean</div>
     <div class="service-chip" data-svc="other">Other</div>
   </div>
   <div id="service-details"></div>
@@ -885,6 +886,10 @@ button.stat-mini:active { background: var(--card-active); }
       <label>Solar per panel ($)</label>
       <input type="number" id="s-solar" inputmode="decimal">
     </div>
+    <div class="form-group">
+      <label>Window clean per window ($)</label>
+      <input type="number" id="s-window" inputmode="decimal" placeholder="e.g. 25">
+    </div>
   </div>
 
   <p class="section-title">Per-sqm rates</p>
@@ -925,7 +930,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V15</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V16</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1042,7 +1047,7 @@ const STORE = {
   agentStatus: 'dript_agent_status'
 };
 const DEFAULT_SETTINGS = {
-  commission: 20, roof: 900, house: 700, pressure: 250,
+  commission: 20, roof: 900, house: 700, pressure: 250, window: 0,
   solar: 10, sqm1: 5, sqm2: 6.5, pressureSqm: 8,
   monthlyGoal: 22700
 };
@@ -1294,11 +1299,11 @@ function calcQuote(lead) {
 
 const SERVICE_LABELS = {
   roof: 'Roof wash', solar: 'Solar panels', house: 'House wash',
-  pressure: 'Pressure wash', other: 'Other'
+  pressure: 'Pressure wash', window: 'Window clean', other: 'Other'
 };
 
 function defaultPrice(svc, qty) {
-  if (svc === 'solar') return (qty || 0) * settings.solar;
+  if (svc === 'solar' || svc === 'window') return (qty || 0) * (settings[svc] || 0);
   if (svc === 'roof' && pricingMode === 'sqm') {
     return Math.round((qty || 0) * (settings.sqm1 || 5));
   }
@@ -1316,6 +1321,8 @@ function renderServiceDetails() {
     let inner = `<div class="service-detail-row"><label>${SERVICE_LABELS[svc]}</label></div>`;
     if (svc === 'solar') {
       inner += `<div class="service-detail-row"><label>Panels</label><input type="number" data-svc="${svc}" data-field="qty" value="${det.qty || ''}" inputmode="decimal"></div>`;
+    } else if (svc === 'window') {
+      inner += `<div class="service-detail-row"><label>Windows</label><input type="number" data-svc="${svc}" data-field="qty" value="${det.qty || ''}" inputmode="numeric" placeholder="How many"></div>`;
     } else if (svc === 'roof' && pricingMode === 'sqm') {
       inner += `<div class="service-detail-row"><label>Sqm</label><input type="number" data-svc="${svc}" data-field="qty" value="${det.qty || ''}" inputmode="decimal"></div>`;
       inner += `<div class="service-detail-row"><label>Storeys</label><select data-svc="${svc}" data-field="storeys">
@@ -1347,9 +1354,10 @@ function renderServiceDetails() {
           currentLead.services[svc].price = Math.round((currentLead.services[svc].qty || 0) * rate);
           const priceInp = container.querySelector(`input[data-svc="pressure"][data-field="price"]`);
           if (priceInp) priceInp.value = currentLead.services[svc].price;
-        } else if (svc === 'solar') {
-          currentLead.services[svc].price = (currentLead.services[svc].qty || 0) * settings.solar;
-          const priceInp = container.querySelector(`input[data-svc="solar"][data-field="price"]`);
+        } else if (svc === 'solar' || svc === 'window') {
+          // Per-unit pricing: panels × solar rate, windows × window rate
+          currentLead.services[svc].price = (currentLead.services[svc].qty || 0) * (settings[svc] || 0);
+          const priceInp = container.querySelector(`input[data-svc="${svc}"][data-field="price"]`);
           if (priceInp) priceInp.value = currentLead.services[svc].price;
         }
       }
@@ -1370,7 +1378,7 @@ document.getElementById('services-grid').querySelectorAll('.service-chip').forEa
       chip.classList.remove('active');
     } else {
       const det = { price: defaultPrice(svc) };
-      if (svc === 'solar' || (svc === 'roof' && pricingMode === 'sqm')) det.qty = '';
+      if (svc === 'solar' || svc === 'window' || (svc === 'roof' && pricingMode === 'sqm')) det.qty = '';
       if (svc === 'roof' && pricingMode === 'sqm') det.storeys = 1;
       currentLead.services[svc] = det;
       chip.classList.add('active');
@@ -1823,7 +1831,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V15';
+const APP_VERSION = 'V16';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2065,6 +2073,7 @@ function loadSettingsForm() {
   document.getElementById('s-house').value = settings.house;
   document.getElementById('s-pressure').value = settings.pressure;
   document.getElementById('s-solar').value = settings.solar;
+  document.getElementById('s-window').value = settings.window || '';
   document.getElementById('s-sqm1').value = settings.sqm1;
   document.getElementById('s-sqm2').value = settings.sqm2;
   document.getElementById('s-pressuresqm').value = settings.pressureSqm;
@@ -2082,6 +2091,7 @@ document.getElementById('save-settings').addEventListener('click', () => {
     house: Number(document.getElementById('s-house').value) || 0,
     pressure: Number(document.getElementById('s-pressure').value) || 0,
     solar: Number(document.getElementById('s-solar').value) || 0,
+    window: Number(document.getElementById('s-window').value) || 0,
     sqm1: Number(document.getElementById('s-sqm1').value) || 5,
     sqm2: Number(document.getElementById('s-sqm2').value) || 6.5,
     pressureSqm: Number(document.getElementById('s-pressuresqm').value) || 8
