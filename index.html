@@ -371,6 +371,24 @@ input[type="file"] { display: none; }
 .agent-sub { font-size: 12px; color: var(--muted-strong); margin: 2px 0 12px; }
 .agent-last { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
+/* Agent status */
+.st-agent { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.st-agent.online { color: var(--accent); }
+.st-agent.offline { color: #f59e0b; }
+.st-asof { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.st-card {
+  background: var(--card); border-radius: 4px; padding: 12px; margin-bottom: 8px;
+  border-left: 3px solid var(--muted);
+}
+.st-card.review, .st-card.waiting { border-left-color: #f59e0b; }
+.st-card.problem { border-left-color: var(--danger); }
+.st-card.sent, .st-card.confirmed, .st-card.ready { border-left-color: var(--accent); }
+.st-name { font-size: 14px; font-weight: 600; }
+.st-msg { font-size: 12px; color: var(--muted-strong); margin-top: 3px; }
+.st-reasons { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: #fbbf24; }
+.st-reasons li { margin: 2px 0; }
+.st-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 80px; left: 50%;
@@ -630,6 +648,7 @@ button.stat-mini:active { background: var(--card-active); }
   </div>
 
   <button class="big-btn" id="new-lead-btn">+ NEW LEAD</button>
+  <button class="secondary-btn" id="status-btn">AGENT STATUS</button>
 
   <div class="reset-row">
     <button class="reset-btn" id="undo-door">− DOORS</button>
@@ -906,7 +925,15 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V14</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V15</p>
+</div>
+
+<!-- AGENT STATUS -->
+<div class="view" id="view-status">
+  <div class="st-agent" id="st-agent">Checking…</div>
+  <div class="st-asof" id="st-asof"></div>
+  <button class="secondary-btn" id="st-refresh">REFRESH</button>
+  <div id="st-list"></div>
 </div>
 
 <!-- EXPORT TRACKER -->
@@ -916,7 +943,8 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="agent-count" id="agent-count">0</div>
     <div class="agent-sub" id="agent-sub">leads ready to send</div>
     <button class="big-btn" id="agent-send" style="margin-bottom:8px;">SEND TO AGENT</button>
-    <button class="secondary-btn" id="agent-save-file" style="margin-bottom:0;">SAVE FILE INSTEAD</button>
+    <button class="secondary-btn" id="agent-save-file">SAVE FILE INSTEAD</button>
+    <button class="secondary-btn" id="agent-status-link" style="margin-bottom:0;">CHECK AGENT STATUS</button>
     <div class="agent-last" id="agent-last"></div>
   </div>
 
@@ -1010,7 +1038,8 @@ const STORE = {
   settings: 'dript_settings',
   timeLog: 'dript_timelog',
   activeSession: 'dript_active_session',
-  rewards: 'dript_rewards'
+  rewards: 'dript_rewards',
+  agentStatus: 'dript_agent_status'
 };
 const DEFAULT_SETTINGS = {
   commission: 20, roof: 900, house: 700, pressure: 250,
@@ -1090,7 +1119,7 @@ function newLead(overrideDateKey) {
 }
 
 // --------- VIEW SWITCHING ---------
-const views = ['home', 'lead', 'leads', 'rewards', 'stats', 'settings', 'export'];
+const views = ['home', 'lead', 'leads', 'rewards', 'stats', 'settings', 'export', 'status'];
 function showView(name) {
   // Exit select mode when leaving leads tab
   if (name !== 'leads' && selectMode) exitSelectMode();
@@ -1100,7 +1129,7 @@ function showView(name) {
   const titles = {
     home: 'TODAY', lead: editingId ? 'EDIT LEAD' : 'NEW LEAD',
     leads: 'LEADS', rewards: 'REWARDS',
-    stats: 'STATS', settings: 'SETTINGS', export: 'EXPORT'
+    stats: 'STATS', settings: 'SETTINGS', export: 'EXPORT', status: 'AGENT STATUS'
   };
   document.getElementById('header-title').textContent = titles[name] || 'DRIPT';
   document.getElementById('clock-btn').style.display = (name === 'home') ? 'block' : 'none';
@@ -1110,6 +1139,7 @@ function showView(name) {
   if (name === 'rewards') renderRewards();
   if (name === 'stats') renderStats();
   if (name === 'export') renderExport();
+  if (name === 'status') renderStatus(true);
   if (name === 'settings') loadSettingsForm();
   window.scrollTo(0, 0);
 }
@@ -1793,7 +1823,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V14';
+const APP_VERSION = 'V15';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -1883,6 +1913,101 @@ document.getElementById('agent-save-file').addEventListener('click', async () =>
     if (err && err.name !== 'AbortError') toast('Couldn’t save the file');
   }
 });
+
+// --------- AGENT STATUS ---------
+// Shows what the office agent has done with each lead this phone sent. The last answer is kept
+// on the phone, so it can still be viewed with no signal.
+let agentStatus = loadJSON(STORE.agentStatus, null); // { fetchedAt, agentLastActive, leads: [...] }
+let statusLoading = false;
+
+function sentLeadsForStatus() {
+  const cutoff = Date.now() - 30 * 86400000;
+  return leads
+    .filter(l => l.sentToAgentAt && Date.parse(l.sentToAgentAt) >= cutoff)
+    .sort((a, b) => b.sentToAgentAt.localeCompare(a.sentToAgentAt));
+}
+
+async function fetchAgentStatus() {
+  const ids = sentLeadsForStatus().map(l => l.id);
+  const res = await fetch(AGENT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'status', code: settings.agentCode, leadIds: ids })
+  });
+  const out = await res.json();
+  if (!out.ok) throw new Error(out.error || 'Rejected');
+  agentStatus = { fetchedAt: new Date().toISOString(), agentLastActive: out.agentLastActive, leads: out.leads };
+  saveJSON(STORE.agentStatus, agentStatus);
+}
+
+const ST_ICON = { processing: '⏳', review: '⚠️', ready: '✓', sent: '✓', confirmed: '✓✓', problem: '✗', rejected: '–', waiting: '⏳' };
+
+function statusCardHTML(l, s) {
+  const name = escapeHTML(l.name || l.address || 'Lead');
+  if (!s) {
+    const mins = Math.round((Date.now() - Date.parse(l.sentToAgentAt)) / 60000);
+    const msg = mins < 15
+      ? 'Sent — waiting for the office computer to pick it up'
+      : `Sent ${shortDateTime(l.sentToAgentAt)} — not picked up yet (office computer may be off)`;
+    return `<div class="st-card waiting"><div class="st-name">${ST_ICON.waiting} ${name}</div><div class="st-msg">${msg}</div></div>`;
+  }
+  const reasons = (s.reasons || []).length
+    ? `<ul class="st-reasons">${s.reasons.map(r => `<li>${escapeHTML(r)}</li>`).join('')}</ul>` : '';
+  return `<div class="st-card ${s.stage}"><div class="st-name">${ST_ICON[s.stage] || ''} ${name}</div>
+    <div class="st-msg">${escapeHTML(s.message)}${s.inGhl ? ' · in GHL' : ''}</div>${reasons}</div>`;
+}
+
+function renderStatus(fetchNow) {
+  const agentEl = document.getElementById('st-agent');
+  const asofEl = document.getElementById('st-asof');
+  const listEl = document.getElementById('st-list');
+  const sent = sentLeadsForStatus();
+
+  if (agentStatus && agentStatus.agentLastActive) {
+    const online = Date.now() - Date.parse(agentStatus.agentLastActive) < 10 * 60000;
+    agentEl.className = 'st-agent ' + (online ? 'online' : 'offline');
+    agentEl.textContent = online
+      ? '● Office agent is running'
+      : `○ Office agent last active ${shortDateTime(agentStatus.agentLastActive)} — leads will process when the office computer is on`;
+  } else {
+    agentEl.className = 'st-agent';
+    agentEl.textContent = statusLoading ? 'Checking…' : 'Tap Refresh to check the office agent';
+  }
+  asofEl.textContent = statusLoading ? 'Checking for updates…'
+    : agentStatus ? `Status as of ${shortDateTime(agentStatus.fetchedAt)}` : '';
+
+  if (!sent.length) {
+    listEl.innerHTML = '<div class="st-empty">No leads sent to the agent in the last 30 days.</div>';
+  } else {
+    const byId = new Map(((agentStatus && agentStatus.leads) || []).map(s => [s.leadId, s]));
+    const attention = l => { const s = byId.get(l.id); return s && (s.stage === 'review' || s.stage === 'problem') ? 0 : 1; };
+    listEl.innerHTML = sent.slice().sort((a, b) => attention(a) - attention(b))
+      .map(l => statusCardHTML(l, byId.get(l.id))).join('');
+  }
+  updateStatusButton();
+
+  if (fetchNow && !statusLoading && sent.length && settings.agentCode && !AGENT_URL.startsWith('PASTE')) {
+    statusLoading = true;
+    renderStatus(false);
+    fetchAgentStatus()
+      .catch(err => toast(/code/i.test(String(err))
+        ? 'Wrong entry code — check Settings'
+        : 'Offline — showing the last status saved on this phone'))
+      .finally(() => { statusLoading = false; renderStatus(false); });
+  }
+}
+
+/** Home button label, e.g. "AGENT STATUS · 2 NEED ATTENTION", from the last saved status. */
+function updateStatusButton() {
+  const ids = new Set(sentLeadsForStatus().map(l => l.id));
+  const n = ((agentStatus && agentStatus.leads) || [])
+    .filter(s => ids.has(s.leadId) && (s.stage === 'review' || s.stage === 'problem')).length;
+  document.getElementById('status-btn').textContent = n ? `AGENT STATUS · ${n} NEED${n === 1 ? 'S' : ''} ATTENTION` : 'AGENT STATUS';
+}
+
+document.getElementById('status-btn').addEventListener('click', () => showView('status'));
+document.getElementById('agent-status-link').addEventListener('click', () => showView('status'));
+document.getElementById('st-refresh').addEventListener('click', () => renderStatus(true));
+updateStatusButton();
 
 // --------- EXPORT ---------
 function renderExport() {
