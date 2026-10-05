@@ -930,7 +930,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V16</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V18</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1831,7 +1831,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V16';
+const APP_VERSION = 'V18';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -1847,8 +1847,28 @@ function buildAgentExport(list) {
     exportId: 'x' + Date.now() + Math.random().toString(36).slice(2, 8),
     repName: settings.repName,
     exportedAt: new Date().toISOString(),
-    leads: list.map(l => Object.fromEntries(pick.filter(k => l[k] !== undefined).map(k => [k, l[k]]))) // no photos
+    leads: list.map(l => Object.fromEntries(pick.filter(k => l[k] !== undefined).map(k => [k, l[k]]))), // no photos
+    kpiDays: kpiDaysThisFinancialYear(),
+    commission: Number(settings.commission) || 0
   };
+}
+
+// Doors, conversations and clocked hours for every day of the financial year (from 1 July), for
+// the office's Stats and My earnings pages. Sent with every export, so corrections to earlier
+// days (e.g. edited hours) and days with no leads are always picked up.
+function kpiDaysThisFinancialYear() {
+  const now = new Date();
+  const fyStart = new Date(now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1, 6, 1);
+  const days = Math.round((now - fyStart) / 86400000) + 1;
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const k = kpi[key] || {};
+    const hoursMs = hoursForDay(key);
+    if (k.doors || k.convos || hoursMs) out.push({ date: key, doors: k.doors || 0, convos: k.convos || 0, hoursMs });
+  }
+  return out;
 }
 
 function markSent(list) {
