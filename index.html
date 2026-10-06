@@ -363,6 +363,14 @@ input[type="file"] { display: none; }
 }
 .bp-chip.selected { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .bp-more { grid-column: 1 / -1; font-size: 11px; color: var(--muted-strong); background: none; border: none; padding: 6px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+.bp-suggest { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bp-sug { padding: 9px 8px; background: var(--card); border: 1px solid var(--border-mid); border-radius: 4px; cursor: pointer; text-align: left; }
+.bp-sug b { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.bp-sug span { display: block; font-size: 11px; color: var(--muted-strong); margin-top: 1px; }
+.bp-sug.selected { border-color: var(--accent); background: var(--card-active); }
+.bp-sug.selected b { color: var(--accent); }
+.bp-note { text-transform: none; letter-spacing: 0; color: var(--muted); }
+.bp-warn { font-size: 12px; color: #fbbf24; border: 1px solid #78350f; background: #1c1407; border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; }
 .bp-clear { background: none; border: none; color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 8px 0 0; cursor: pointer; }
 
 /* Send to agent */
@@ -388,6 +396,9 @@ input[type="file"] { display: none; }
 .st-reasons { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: #fbbf24; }
 .st-reasons li { margin: 2px 0; }
 .st-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+
+.job-chip { font-size: 10px; color: var(--accent); border: 1px solid var(--border-mid); border-radius: 3px; padding: 1px 5px; letter-spacing: .5px; }
+.job-line { font-size: 12px; color: var(--accent); border: 1px solid var(--border-mid); border-radius: 4px; padding: 8px 10px; margin-bottom: 12px; letter-spacing: .5px; }
 
 /* Toast */
 .toast {
@@ -659,6 +670,7 @@ button.stat-mini:active { background: var(--card-active); }
 
 <!-- LEAD FORM -->
 <div class="view" id="view-lead">
+  <div class="job-line" id="f-job" hidden></div>
   <div class="form-group" id="edit-date-wrap" style="display:none;">
     <label>Date logged (change to move)</label>
     <input type="date" id="f-date-logged">
@@ -745,6 +757,11 @@ button.stat-mini:active { background: var(--card-active); }
   <div class="form-group" style="margin-top: 14px;" id="booking-date-wrap">
     <label>Booking</label>
     <div class="bp-summary" id="bp-summary">Pick a day, time and length</div>
+    <div class="bp-warn" id="bp-warn" hidden></div>
+    <div id="bp-suggest-wrap" hidden>
+      <div class="bp-label">Suggested times <span class="bp-note" id="bp-suggest-note"></span></div>
+      <div class="bp-suggest" id="bp-suggest"></div>
+    </div>
     <div class="bp-label">Day</div>
     <div class="bp-days" id="bp-days"></div>
     <div class="bp-label">Time</div>
@@ -1140,7 +1157,7 @@ function showView(name) {
   document.getElementById('clock-btn').style.display = (name === 'home') ? 'block' : 'none';
   document.getElementById('back-btn').style.visibility = (name === 'home') ? 'hidden' : 'visible';
   if (name === 'home') renderHome();
-  if (name === 'leads') renderLeadsList();
+  if (name === 'leads') { renderLeadsList(); refreshStatusQuietly(renderLeadsList); }
   if (name === 'rewards') renderRewards();
   if (name === 'stats') renderStats();
   if (name === 'export') renderExport();
@@ -1411,6 +1428,7 @@ document.querySelectorAll('#view-lead .status-btn').forEach(btn => {
     btn.classList.add('selected');
     currentLead.status = btn.dataset.status;
     document.getElementById('booking-date-wrap').style.display = (currentLead.status === 'Booked') ? 'block' : 'none';
+    if (currentLead.status === 'Booked') refreshStatusQuietly(() => renderBookingPicker(false));
   });
 });
 
@@ -1477,7 +1495,7 @@ function renderBookingPicker(scrollToSelected) {
   const done = bpSel.day && bpSel.time;
   summary.classList.toggle('set', !!done);
   if (done) {
-    summary.textContent = currentLead.booking;
+    summary.textContent = currentLead.booking + (currentLead.bookingCrew ? ` · ${currentLead.bookingCrew}` : '');
   } else {
     const need = [!bpSel.day && 'day', !bpSel.time && 'time'].filter(Boolean).join(' and ');
     const old = currentLead.booking && !currentLead.bookingStart
@@ -1524,18 +1542,114 @@ function renderBookingPicker(scrollToSelected) {
   document.getElementById('bp-lengths').innerHTML = BP_LENGTHS
     .map(([mins, label]) => `<div class="bp-chip${mins === bpSel.mins ? ' selected' : ''}" data-mins="${mins}">${label}</div>`)
     .join('');
+
+  renderSuggestions();
 }
+
+// --------- SUGGESTED BOOKING TIMES ---------
+// The office agent sends when each crew (ute) is booked in the GHL calendars. From that, suggest
+// the earliest slot each working day that fits the job length picked below. Tapping one fills in
+// the day and time like normal; everything can still be changed by hand.
+function availabilityData() {
+  const a = agentStatus && agentStatus.availability;
+  return a && a.crews && a.crews.length ? a : null;
+}
+function slotCheck(a, startMs, mins) {
+  const endMs = startMs + mins * 60000;
+  const overlaps = ([s, e]) => Date.parse(s) < endMs && Date.parse(e) > startMs;
+  const free = a.crews.filter(c => !c.busy.some(overlaps));
+  const draftNeed = a.unassigned.filter(overlaps).length; // Draft bookings each need a crew too
+  const blocked = a.blocked.some(overlaps);
+  return { ok: !blocked && free.length > draftNeed, crew: free[draftNeed] ? free[draftNeed].name : null, free: free.length, blocked };
+}
+function slotMs(a, day, hhmm) { return Date.parse(`${day}T${hhmm}:00${a.timeZoneOffset}`); }
+function msToHHMM(a, ms) {
+  const [oh, om] = a.timeZoneOffset.slice(1).split(':').map(Number);
+  const d = new Date(ms + (a.timeZoneOffset[0] === '-' ? -1 : 1) * (oh * 60 + om) * 60000);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+function suggestSlots(mins, count) {
+  const a = availabilityData();
+  if (!a) return [];
+  const out = [];
+  for (let i = 1; i <= 42 && out.length < count; i++) {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    if (!a.days.includes(d.getDay())) continue;
+    const day = bpDayKey(d);
+    const dayStart = slotMs(a, day, a.start), dayEnd = slotMs(a, day, a.end);
+    // Start of the day, or straight after any booking that ends during it (rounded up to :00/:30).
+    const starts = new Set([dayStart]);
+    [...a.crews.flatMap(c => c.busy), ...a.unassigned].forEach(([, e]) => {
+      const t = Math.ceil(Date.parse(e) / 1800000) * 1800000;
+      if (t > dayStart && t < dayEnd) starts.add(t);
+    });
+    for (const s of [...starts].sort((x, y) => x - y)) {
+      if (s + mins * 60000 > dayEnd) break;
+      const c = slotCheck(a, s, mins);
+      if (c.ok) { out.push({ day, time: msToHHMM(a, s), crew: c.crew }); break; }
+    }
+  }
+  return out;
+}
+function renderSuggestions() {
+  const wrap = document.getElementById('bp-suggest-wrap');
+  const warn = document.getElementById('bp-warn');
+  const a = availabilityData();
+  wrap.hidden = !a;
+  warn.hidden = true;
+  if (!a) return;
+  const list = suggestSlots(bpSel.mins, 6);
+  document.getElementById('bp-suggest-note').textContent =
+    `· for ${bpLengthLabel(bpSel.mins)} · calendars as of ${shortTime(a.generatedAt)}`;
+  document.getElementById('bp-suggest').innerHTML = list.length
+    ? list.map(s => {
+        const [y, m, dd] = s.day.split('-').map(Number);
+        const label = new Date(y, m - 1, dd).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+        const on = s.day === bpSel.day && s.time === bpSel.time;
+        return `<div class="bp-sug${on ? ' selected' : ''}" data-day="${s.day}" data-time="${s.time}" data-crew="${escapeHTML(s.crew || '')}">
+          <b>${label} · ${bpTimeLabel(s.time)}</b><span>${escapeHTML(s.crew || '')}</span></div>`;
+      }).join('')
+    : '<div class="bp-note" style="grid-column:1/-1">No free slot that long in the next 6 weeks — pick a time below.</div>';
+
+  // A hand-picked time that clashes: warn, but don't stop the booking.
+  if (bpSel.day && bpSel.time) {
+    const startMs = slotMs(a, bpSel.day, bpSel.time), endMs = startMs + bpSel.mins * 60000;
+    const c = slotCheck(a, startMs, bpSel.mins);
+    // Keep the suggested ute only while it's still free for the chosen day, time and length.
+    if (currentLead.bookingCrew) {
+      const crew = a.crews.find(x => x.name === currentLead.bookingCrew);
+      if (!crew || crew.busy.some(([s, e]) => Date.parse(s) < endMs && Date.parse(e) > startMs)) delete currentLead.bookingCrew;
+    }
+    if (!c.ok) {
+      warn.hidden = false;
+      warn.textContent = c.blocked
+        ? 'That day is blocked in the office calendar (e.g. a public holiday). The office will need to move it.'
+        : `${a.crews.length === 2 ? 'Both utes are' : 'Every crew is'} booked then. You can still book it; the office will sort the crew.`;
+    }
+  }
+}
+document.getElementById('bp-suggest').addEventListener('click', e => {
+  const el = e.target.closest('.bp-sug');
+  if (!el) return;
+  bpSel.day = el.dataset.day;
+  bpSel.time = el.dataset.time;
+  if (el.dataset.crew) currentLead.bookingCrew = el.dataset.crew;
+  bpCommit();
+  renderBookingPicker(true);
+});
 
 document.getElementById('bp-days').addEventListener('click', e => {
   const el = e.target.closest('.bp-day');
   if (!el) return;
   bpSel.day = el.dataset.day;
+  delete currentLead.bookingCrew; // picked by hand, so no longer the suggested ute
   bpCommit();
 });
 document.getElementById('bp-times').addEventListener('click', e => {
   if (e.target.id === 'bp-more') { bpAllTimes = !bpAllTimes; renderBookingPicker(false); return; }
   const el = e.target.closest('.bp-chip');
   if (!el) return;
+  delete currentLead.bookingCrew;
   bpSel.time = el.dataset.time;
   bpCommit();
 });
@@ -1549,6 +1663,7 @@ document.getElementById('bp-clear').addEventListener('click', () => {
   bpSel = { day: '', time: '', mins: BP_DEFAULT_MINS };
   delete currentLead.bookingStart;
   delete currentLead.bookingDurationMin;
+  delete currentLead.bookingCrew;
   currentLead.booking = '';
   renderBookingPicker(false);
 });
@@ -1604,6 +1719,10 @@ function loadLeadForm() {
   document.getElementById('f-notes').value = currentLead.notes || '';
   document.getElementById('f-rating').value = currentLead.rating || '';
   bpLoad(currentLead);
+  const job = editingId && agentStatus && agentStatus.jobs && agentStatus.jobs[currentLead.id];
+  const jobEl = document.getElementById('f-job');
+  jobEl.hidden = !job;
+  if (job) jobEl.textContent = `ServiceM8 job #${job.number}${job.status ? ' · ' + job.status : ''}`;
   document.getElementById('f-manual-quote').value = currentLead.manualQuote || '';
   document.querySelectorAll('#services-grid .service-chip').forEach(chip => {
     chip.classList.toggle('active', !!currentLead.services[chip.dataset.svc]);
@@ -1814,6 +1933,7 @@ function leadCardHTML(l) {
       <div class="lead-meta">
         ${badge}
         ${l.rating ? `<span style="color:var(--muted-strong)">${l.rating}/10</span>` : ''}
+        ${jobChip(l.id)}
         <span style="color:var(--muted); margin-left:auto;">${shortDateTime(l.createdAt)}</span>
       </div>
     </div>
@@ -1840,7 +1960,7 @@ function unsentLeads() {
 
 function buildAgentExport(list) {
   const pick = ['id', 'name', 'address', 'phone', 'email', 'services', 'manualQuote', 'status',
-    'booking', 'bookingStart', 'bookingDurationMin', 'notes', 'rating', 'createdAt', 'dateKey'];
+    'booking', 'bookingStart', 'bookingDurationMin', 'bookingCrew', 'notes', 'rating', 'createdAt', 'dateKey'];
   return {
     source: 'dript-app',
     appVersion: APP_VERSION,
@@ -1849,8 +1969,19 @@ function buildAgentExport(list) {
     exportedAt: new Date().toISOString(),
     leads: list.map(l => Object.fromEntries(pick.filter(k => l[k] !== undefined).map(k => [k, l[k]]))), // no photos
     kpiDays: kpiDaysThisFinancialYear(),
-    commission: Number(settings.commission) || 0
+    commission: Number(settings.commission) || 0,
+    // A summary of every lead from the last 4 months, so the office can match bookings in its
+    // calendars to your leads. For matching only: the agent doesn't make jobs from these.
+    history: leadHistory(120)
   };
+}
+
+function leadHistory(days) {
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  return leads.filter(l => (l.dateKey || '') >= cutoff).map(l => ({
+    id: l.id, name: l.name || '', address: l.address || '', phone: l.phone || '', email: l.email || '',
+    status: l.status || '', total: calcQuote(l), dateKey: l.dateKey || '', booking: l.booking || '', bookingStart: l.bookingStart || ''
+  }));
 }
 
 // Doors, conversations and clocked hours for every day of the financial year (from 1 July), for
@@ -1956,14 +2087,16 @@ function sentLeadsForStatus() {
 }
 
 async function fetchAgentStatus() {
-  const ids = sentLeadsForStatus().map(l => l.id);
+  // Sent leads for progress, plus all recent leads so bookings in the office calendars show up.
+  const cutoff = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10);
+  const ids = [...new Set([...sentLeadsForStatus().map(l => l.id), ...leads.filter(l => (l.dateKey || '') >= cutoff).map(l => l.id)])];
   const res = await fetch(AGENT_URL, {
     method: 'POST',
     body: JSON.stringify({ action: 'status', code: settings.agentCode, leadIds: ids })
   });
   const out = await res.json();
   if (!out.ok) throw new Error(out.error || 'Rejected');
-  agentStatus = { fetchedAt: new Date().toISOString(), agentLastActive: out.agentLastActive, leads: out.leads };
+  agentStatus = { fetchedAt: new Date().toISOString(), agentLastActive: out.agentLastActive, leads: out.leads, bookings: out.bookings || {}, jobs: out.jobs || {} };
   saveJSON(STORE.agentStatus, agentStatus);
 }
 
@@ -2003,17 +2136,18 @@ function renderStatus(fetchNow) {
   asofEl.textContent = statusLoading ? 'Checking for updates…'
     : agentStatus ? `Status as of ${shortDateTime(agentStatus.fetchedAt)}` : '';
 
+  const bookingsHTML = upcomingBookingsHTML();
   if (!sent.length) {
-    listEl.innerHTML = '<div class="st-empty">No leads sent to the agent in the last 30 days.</div>';
+    listEl.innerHTML = bookingsHTML + '<div class="st-empty">No leads sent to the agent in the last 30 days.</div>';
   } else {
     const byId = new Map(((agentStatus && agentStatus.leads) || []).map(s => [s.leadId, s]));
     const attention = l => { const s = byId.get(l.id); return s && (s.stage === 'review' || s.stage === 'problem') ? 0 : 1; };
-    listEl.innerHTML = sent.slice().sort((a, b) => attention(a) - attention(b))
+    listEl.innerHTML = bookingsHTML + (bookingsHTML ? '<p class="section-title">Sent to the agent</p>' : '') + sent.slice().sort((a, b) => attention(a) - attention(b))
       .map(l => statusCardHTML(l, byId.get(l.id))).join('');
   }
   updateStatusButton();
 
-  if (fetchNow && !statusLoading && sent.length && settings.agentCode && !AGENT_URL.startsWith('PASTE')) {
+  if (fetchNow && !statusLoading && leads.length && settings.agentCode && !AGENT_URL.startsWith('PASTE')) {
     statusLoading = true;
     renderStatus(false);
     fetchAgentStatus()
@@ -2022,6 +2156,35 @@ function renderStatus(fetchNow) {
         : 'Offline — showing the last status saved on this phone'))
       .finally(() => { statusLoading = false; renderStatus(false); });
   }
+}
+
+// Upcoming jobs booked in the office calendars for this phone's leads, matched by the agent.
+function upcomingBookingsHTML() {
+  const all = Object.entries((agentStatus && agentStatus.bookings) || {})
+    .flatMap(([id, list]) => list.map(b => ({ ...b, lead: leads.find(l => l.id === id) })))
+    .filter(b => Date.parse(b.start) > Date.now() - 12 * 3600000)
+    .sort((a, b) => a.start.localeCompare(b.start));
+  if (!all.length) return '';
+  const when = iso => { const d = new Date(iso); return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + shortTime(iso); };
+  const value = all.reduce((t, b) => t + (b.lead ? calcQuote(b.lead) : 0), 0);
+  return `<p class="section-title">Your booked jobs · ${all.length}${value ? ' · $' + value.toLocaleString() : ''}</p>` +
+    all.map(b => `<div class="st-card confirmed"><div class="st-name">📅 ${escapeHTML(when(b.start))}</div>
+      <div class="st-msg">${escapeHTML((b.lead && b.lead.name) || b.client)} · ${escapeHTML(b.address)} · ${escapeHTML(b.calendar)}${
+        b.lead && calcQuote(b.lead) ? ' · $' + calcQuote(b.lead).toLocaleString() : ''}</div></div>`).join('');
+}
+
+// ServiceM8 job number for a lead, from the last status the agent sent (helps with admin).
+function jobChip(id) {
+  const job = agentStatus && agentStatus.jobs && agentStatus.jobs[id];
+  return job ? `<span class="job-chip" title="${escapeHTML(job.status || 'ServiceM8 job')}">#${escapeHTML(job.number)}</span>` : '';
+}
+
+// Refresh job numbers and bookings in the background if the saved status is over 15 minutes old.
+function refreshStatusQuietly(then) {
+  if (statusLoading || !settings.agentCode || AGENT_URL.startsWith('PASTE')) return;
+  if (agentStatus && Date.now() - Date.parse(agentStatus.fetchedAt) < 15 * 60000) return;
+  statusLoading = true;
+  fetchAgentStatus().then(() => then && then()).catch(() => {}).finally(() => { statusLoading = false; });
 }
 
 /** Home button label, e.g. "AGENT STATUS · 2 NEED ATTENTION", from the last saved status. */
