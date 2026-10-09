@@ -347,6 +347,7 @@ input[type="file"] { display: none; }
 .bp-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 10px 0 6px; }
 .bp-days { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
 .bp-days::-webkit-scrollbar { display: none; }
+.bp-far { font-size: 11px; color: var(--muted); margin: 4px 0 2px; line-height: 1.4; }
 .bp-day {
   flex: 0 0 64px; scroll-snap-align: start; padding: 8px 4px; text-align: center;
   background: var(--card); border: 1px solid var(--border-mid); border-radius: 4px; cursor: pointer;
@@ -764,6 +765,7 @@ button.stat-mini:active { background: var(--card-active); }
     </div>
     <div class="bp-label">Day</div>
     <div class="bp-days" id="bp-days"></div>
+    <div class="bp-far">More than 2 months away? Pick any day, then write the real date and time in the notes (e.g. “book it for 14 Jan at 9am”). The office agent books it from the notes.</div>
     <div class="bp-label">Time</div>
     <div class="bp-times" id="bp-times"></div>
     <div class="bp-label">Length</div>
@@ -947,7 +949,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V18</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V19</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1503,10 +1505,10 @@ function renderBookingPicker(scrollToSelected) {
     summary.innerHTML = `Pick a ${need}${old}`;
   }
 
-  // Next 4 weeks, plus the booked day if it falls outside that.
+  // Next 2 months, plus the booked day if it falls outside that. Further out goes in the notes.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const days = [];
-  for (let i = 0; i < 28; i++) { const d = new Date(today); d.setDate(today.getDate() + i); days.push(d); }
+  for (let i = 0; i < 61; i++) { const d = new Date(today); d.setDate(today.getDate() + i); days.push(d); }
   if (bpSel.day && !days.some(d => bpDayKey(d) === bpSel.day)) {
     const [y, m, dd] = bpSel.day.split('-').map(Number);
     days.unshift(new Date(y, m - 1, dd));
@@ -1722,7 +1724,7 @@ function loadLeadForm() {
   const job = editingId && agentStatus && agentStatus.jobs && agentStatus.jobs[currentLead.id];
   const jobEl = document.getElementById('f-job');
   jobEl.hidden = !job;
-  if (job) jobEl.textContent = `ServiceM8 job #${job.number}${job.status ? ' · ' + job.status : ''}`;
+  if (job) jobEl.textContent = `ServiceM8 job #${job.number}${job.status ? ' · ' + job.status : ''}${job.price ? ' · office price $' + Number(job.price).toLocaleString() : ''}`;
   document.getElementById('f-manual-quote').value = currentLead.manualQuote || '';
   document.querySelectorAll('#services-grid .service-chip').forEach(chip => {
     chip.classList.toggle('active', !!currentLead.services[chip.dataset.svc]);
@@ -1951,7 +1953,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V18';
+const APP_VERSION = 'V19';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2098,6 +2100,23 @@ async function fetchAgentStatus() {
   if (!out.ok) throw new Error(out.error || 'Rejected');
   agentStatus = { fetchedAt: new Date().toISOString(), agentLastActive: out.agentLastActive, leads: out.leads, bookings: out.bookings || {}, jobs: out.jobs || {} };
   saveJSON(STORE.agentStatus, agentStatus);
+  applyOfficePrices();
+}
+
+// When the office changes a lead's price (e.g. they sent a proposal for more than the door quote),
+// use it here too so Stats and totals match. Each office price is applied once, so a later change
+// made on this phone isn't overwritten; it goes back to the office with the next Send to agent.
+function applyOfficePrices() {
+  const jobs = (agentStatus && agentStatus.jobs) || {};
+  let changed = false;
+  leads.forEach(l => {
+    const price = jobs[l.id] && jobs[l.id].price;
+    if (!price || price === l.officePrice) return;
+    l.officePrice = price;
+    if (calcQuote(l) !== price) l.manualQuote = String(price);
+    changed = true;
+  });
+  if (changed) saveJSON(STORE.leads, leads);
 }
 
 const ST_ICON = { processing: '⏳', review: '⚠️', ready: '✓', sent: '✓', confirmed: '✓✓', problem: '✗', rejected: '–', waiting: '⏳' };
