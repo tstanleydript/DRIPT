@@ -949,7 +949,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V19</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V20</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1953,7 +1953,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V19';
+const APP_VERSION = 'V20';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2665,6 +2665,8 @@ function openHoursModal() {
   document.getElementById('hours-modal-day').textContent = 'HOURS — ' +
     (selectedDateKey === todayKey() ? 'TODAY' : selectedDateKey);
   document.getElementById('hours-add-form').style.display = 'none';
+  editingSessionIdx = null;
+  document.getElementById('hours-save-new').textContent = 'SAVE SESSION';
   renderHoursSessions();
 }
 function closeHoursModal() {
@@ -2693,9 +2695,15 @@ function renderHoursSessions() {
         <div style="font-size:13px; color:var(--text); font-weight:500;">${formatTime(s.start)} → ${formatTime(s.end)}</div>
         <div style="font-size:11px; color:var(--muted); margin-top:2px; letter-spacing:1px;">${dur}</div>
       </div>
+      <div style="display:flex; gap:6px;">
+      <button data-idx="${i}" class="hours-edit" style="background:transparent; color:var(--text); border:1px solid var(--border-mid); border-radius:4px; padding:5px 10px; font-size:10px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">Edit</button>
       <button data-idx="${i}" class="hours-del" style="background:transparent; color:#fca5a5; border:1px solid #991b1b; border-radius:4px; padding:5px 10px; font-size:10px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">Delete</button>
+      </div>
     </div>`;
   }).join('');
+  list.querySelectorAll('.hours-edit').forEach(btn => {
+    btn.addEventListener('click', () => openSessionForm(Number(btn.dataset.idx)));
+  });
   list.querySelectorAll('.hours-del').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = Number(btn.dataset.idx);
@@ -2711,13 +2719,22 @@ function renderHoursSessions() {
 document.getElementById('edit-hours-btn').addEventListener('click', openHoursModal);
 document.getElementById('hours-close').addEventListener('click', closeHoursModal);
 document.getElementById('hours-done').addEventListener('click', closeHoursModal);
+// The add form doubles as the edit form: editingSessionIdx is the session being changed, or null when adding.
+let editingSessionIdx = null;
+const hhmm = iso => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+function openSessionForm(idx) {
+  const form = document.getElementById('hours-add-form');
+  const s = idx == null ? null : (timeLog[selectedDateKey] || [])[idx];
+  editingSessionIdx = s ? idx : null;
+  document.getElementById('hours-start').value = s ? hhmm(s.start) : '09:00';
+  document.getElementById('hours-end').value = s ? hhmm(s.end) : '17:00';
+  document.getElementById('hours-save-new').textContent = s ? 'UPDATE SESSION' : 'SAVE SESSION';
+  form.style.display = 'block';
+}
 document.getElementById('hours-add').addEventListener('click', () => {
   const form = document.getElementById('hours-add-form');
-  form.style.display = form.style.display === 'none' ? 'block' : 'none';
-  if (form.style.display === 'block') {
-    if (!document.getElementById('hours-start').value) document.getElementById('hours-start').value = '09:00';
-    if (!document.getElementById('hours-end').value) document.getElementById('hours-end').value = '17:00';
-  }
+  if (form.style.display === 'block' && editingSessionIdx == null) { form.style.display = 'none'; return; }
+  openSessionForm(null);
 });
 document.getElementById('hours-save-new').addEventListener('click', () => {
   const startTime = document.getElementById('hours-start').value;
@@ -2730,14 +2747,19 @@ document.getElementById('hours-save-new').addEventListener('click', () => {
   const endDt = new Date(y, mo - 1, d, eh, em);
   if (endDt <= startDt) return toast('End must be after start');
   if (!timeLog[selectedDateKey]) timeLog[selectedDateKey] = [];
-  timeLog[selectedDateKey].push({ start: startDt.toISOString(), end: endDt.toISOString() });
+  const session = { start: startDt.toISOString(), end: endDt.toISOString() };
+  const editing = editingSessionIdx != null && timeLog[selectedDateKey][editingSessionIdx];
+  if (editing) timeLog[selectedDateKey][editingSessionIdx] = session;
+  else timeLog[selectedDateKey].push(session);
+  editingSessionIdx = null;
+  document.getElementById('hours-save-new').textContent = 'SAVE SESSION';
   timeLog[selectedDateKey].sort((a, b) => a.start.localeCompare(b.start));
   saveJSON(STORE.timeLog, timeLog);
   document.getElementById('hours-add-form').style.display = 'none';
   document.getElementById('hours-start').value = '';
   document.getElementById('hours-end').value = '';
   renderHoursSessions();
-  toast('Session added');
+  toast(editing ? 'Session updated' : 'Session added');
 });
 
 // --------- REWARDS ---------
