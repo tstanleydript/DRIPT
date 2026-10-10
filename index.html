@@ -949,7 +949,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V20</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V21</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1953,7 +1953,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V20';
+const APP_VERSION = 'V21';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2016,32 +2016,41 @@ function markSent(list) {
 function renderAgentBox() {
   const n = unsentLeads().length;
   document.getElementById('agent-count').textContent = n;
-  document.getElementById('agent-sub').textContent = n === 1 ? 'lead ready to send' : 'leads ready to send';
-  document.getElementById('agent-send').disabled = n === 0;
+  document.getElementById('agent-sub').textContent = n === 1 ? 'lead ready to send'
+    : n ? 'leads ready to send' : 'no new leads · tap Send to update your hours & stats';
+  document.getElementById('agent-send').disabled = n === 0 && !hoursCarrier();
   document.getElementById('agent-last').textContent = settings.agentLastSent
     ? `Last sent ${shortDateTime(settings.agentLastSent)}` : '';
 }
 
-function agentReady() {
+function agentReady(needLeads = true) {
   if (!settings.repName) { toast('Add your name in Settings first'); return false; }
-  if (!unsentLeads().length) { toast('Nothing new to send'); return false; }
+  if (!unsentLeads().length && (needLeads || !hoursCarrier())) { toast('Nothing new to send'); return false; }
   return true;
 }
 
+// With no new leads, Send still updates the office's hours and stats (e.g. after fixing a day's
+// hours). The office inbox needs at least one lead, so the newest already-sent lead goes along;
+// the agent recognises it and doesn't process it again.
+function hoursCarrier() {
+  return leads.filter(l => l.sentToAgentAt).sort((a, b) => b.sentToAgentAt.localeCompare(a.sentToAgentAt))[0] || null;
+}
+
 document.getElementById('agent-send').addEventListener('click', async () => {
-  if (!agentReady()) return;
+  if (!agentReady(false)) return;
   if (!settings.agentCode) return toast('Add the entry code in Settings first');
   if (AGENT_URL.startsWith('PASTE')) return toast('Agent not set up yet — use Save file instead');
   const btn = document.getElementById('agent-send');
   const list = unsentLeads();
+  const payload = list.length ? list : [hoursCarrier()];
   btn.disabled = true; btn.textContent = 'SENDING…';
   try {
     // Plain-text body avoids a CORS preflight, which Apps Script can't answer.
-    const res = await fetch(AGENT_URL, { method: 'POST', body: JSON.stringify({ ...buildAgentExport(list), code: settings.agentCode }) });
+    const res = await fetch(AGENT_URL, { method: 'POST', body: JSON.stringify({ ...buildAgentExport(payload), code: settings.agentCode }) });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || 'Rejected');
     markSent(list);
-    toast(`Sent ${list.length} lead${list.length === 1 ? '' : 's'} to the agent`);
+    toast(list.length ? `Sent ${list.length} lead${list.length === 1 ? '' : 's'} to the agent` : 'Hours & stats sent to the office');
   } catch (err) {
     toast(/code/i.test(String(err)) ? 'Wrong entry code — check Settings' : 'Couldn’t send — check signal and try again. Nothing lost.');
   } finally {
