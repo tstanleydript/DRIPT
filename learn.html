@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Dript Training</title>
+<style>
+:root {
+  --bg: #141414; --card: #262626; --card-active: #333333; --border-mid: #333333;
+  --text: #ffffff; --muted: #737373; --muted-strong: #a3a3a3;
+  --accent: #d4ff00; --accent-dim: #a3cc00; --danger: #ef4444; --ok: #4ade80; --warn: #fbbf24;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-size: 15px; line-height: 1.45; padding-bottom: env(safe-area-inset-bottom); }
+.app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.header { padding: calc(env(safe-area-inset-top) + 12px) 20px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border-mid); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+.header h1 { margin: 0; font-size: 15px; font-weight: 500; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+.hbtn { background: none; border: none; color: var(--text); font: inherit; font-size: 13px; padding: 8px 0; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; min-width: 54px; text-align: left; }
+.hbtn.r { text-align: right; color: var(--muted-strong); }
+.content { flex: 1; padding: 16px 20px 28px; }
+.label { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; margin: 22px 0 8px; }
+.label:first-child { margin-top: 4px; }
+.card { background: var(--card); border: 1px solid var(--border-mid); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+.mod { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.mod .t { font-size: 17px; font-weight: 600; }
+.mod .s { color: var(--muted-strong); font-size: 13px; margin-top: 2px; }
+.mod.locked { opacity: .55; cursor: default; }
+.mod .tag { float: right; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border-mid); border-radius: 4px; padding: 2px 6px; }
+.bar { height: 6px; background: #1c1c1c; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s; }
+.row { display: flex; gap: 10px; }
+.btn { flex: 1; font: inherit; font-weight: 600; font-size: 14px; letter-spacing: .5px; padding: 13px 12px; border-radius: 8px; border: 1px solid var(--border-mid); background: var(--card); color: var(--text); cursor: pointer; }
+.btn.primary { background: var(--accent); color: #111; border-color: var(--accent); }
+.btn.ghost { background: none; color: var(--muted-strong); }
+.btn:disabled { opacity: .4; cursor: default; }
+.stage { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.stage .n { width: 26px; height: 26px; border-radius: 50%; background: #1c1c1c; display: grid; place-items: center; font-size: 12px; color: var(--muted-strong); flex: none; }
+.stage .n.done { background: var(--accent); color: #111; font-weight: 700; }
+.stage .x { flex: 1; min-width: 0; }
+.stage .x b { display: block; font-weight: 600; }
+.stage .x span { font-size: 12.5px; color: var(--muted); }
+.stage .m { font-size: 12px; color: var(--muted-strong); font-variant-numeric: tabular-nums; }
+.say { font-size: 18px; line-height: 1.5; margin: 0 0 12px; }
+.say:last-child { margin-bottom: 0; }
+.do { font-size: 14.5px; margin: 0 0 12px; padding-left: 12px; border-left: 2px solid var(--muted); color: var(--muted-strong); }
+.cue { display: block; font-size: 13.5px; color: var(--accent); font-style: italic; margin-top: 4px; }
+.tok { color: var(--accent); border-bottom: 1px dashed var(--accent-dim); }
+.step { display: block; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); font-style: normal; font-weight: 600; margin-bottom: 3px; }
+.do .step { color: var(--muted); }
+.qt { font-size: 18px; line-height: 1.45; font-style: italic; margin: 0 0 14px; }
+.qt span { display: block; font-size: 13px; font-style: normal; color: var(--accent); margin-top: 4px; }
+.def { font-size: 15px; color: var(--muted-strong); margin: 0 0 14px; }
+.def b { color: var(--text); }
+.why { font-size: 14px; color: var(--muted-strong); }
+.why b { color: var(--text); }
+.progress { display: flex; gap: 4px; margin-bottom: 14px; }
+.progress i { flex: 1; height: 4px; border-radius: 2px; background: #2a2a2a; }
+.progress i.on { background: var(--accent); }
+.progress i.bad { background: var(--danger); }
+.q { font-size: 17px; font-weight: 600; margin: 4px 0 6px; }
+.qsub { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+.quote { font-size: 15px; color: var(--muted-strong); font-style: italic; border-left: 2px solid var(--border-mid); padding-left: 10px; margin: 0 0 14px; }
+.opt { display: block; width: 100%; text-align: left; font: inherit; font-size: 15px; color: var(--text); background: var(--card); border: 1px solid var(--border-mid); border-radius: 10px; padding: 13px 14px; margin-bottom: 9px; cursor: pointer; }
+.opt.right { border-color: var(--ok); background: rgba(74,222,128,.10); }
+.opt.wrong { border-color: var(--danger); background: rgba(239,68,68,.10); }
+.opt.dim { opacity: .45; }
+.opt .k { color: var(--muted); font-size: 12px; margin-right: 8px; font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; font-size: 15px; padding: 10px 14px; border-radius: 20px; border: 1px solid var(--border-mid); background: var(--card); color: var(--text); cursor: pointer; }
+.chip.right { border-color: var(--ok); background: rgba(74,222,128,.12); }
+.chip.wrong { border-color: var(--danger); background: rgba(239,68,68,.12); }
+.chip.used { opacity: .3; }
+.blank { display: inline-block; min-width: 70px; border-bottom: 2px solid var(--accent); text-align: center; color: var(--accent); font-weight: 600; }
+.fb { border-radius: 10px; padding: 12px 14px; margin: 6px 0 14px; font-size: 14px; }
+.fb.good { background: rgba(74,222,128,.10); border: 1px solid rgba(74,222,128,.35); }
+.fb.bad { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.35); }
+.fb b { display: block; margin-bottom: 2px; }
+.big { font-size: 44px; font-weight: 700; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.center { text-align: center; }
+.muted { color: var(--muted); font-size: 13px; }
+.audio { display: flex; gap: 8px; margin: 2px 0 14px; flex-wrap: wrap; }
+.pill { font: inherit; font-size: 12.5px; padding: 7px 12px; border-radius: 16px; border: 1px solid var(--border-mid); background: none; color: var(--muted-strong); cursor: pointer; }
+.pill.rec { border-color: var(--danger); color: var(--danger); }
+.pill:disabled { opacity: .45; cursor: default; }
+.grade { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.grade .btn { padding: 12px 6px; font-size: 13px; }
+.grade .g0 { border-color: rgba(239,68,68,.5); } .grade .g1 { border-color: rgba(251,191,36,.5); } .grade .g2 { border-color: rgba(74,222,128,.5); }
+.hidden-lines { filter: blur(7px); user-select: none; pointer-events: none; }
+.sticky-foot { position: sticky; bottom: 0; padding: 12px 0 calc(env(safe-area-inset-bottom) + 6px); background: linear-gradient(transparent, var(--bg) 30%); }
+input.name { width: 100%; font: inherit; font-size: 16px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-mid); background: var(--card); color: var(--text); }
+.breakdown .stage { cursor: default; padding: 4px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <button class="hbtn" id="back" hidden>‹ Back</button>
+    <h1 id="title">Training</h1>
+    <button class="hbtn r" id="right"></button>
+  </div>
+  <div class="content" id="main"></div>
+</div>
+
+<script>
+// Dript training: Module 1 (the door) from Tim's script. Learn → Drill (multiple choice, cues,
+// fill the gap, price maths, order) → Run it (say it out loud from memory, self-graded).
+// Progress lives in this device's localStorage. Voiceovers: set `audio` on a stage to a file path.
+
+const STORE_KEY = 'dript_learn_v1';
+const TRAVEL_FEE = 150;
+
+// {name} = the rep's name. {addr} / {neighbour} = today's job on the street (swap in the real one).
+const MODULES = [
+  {
+    id: 'door', title: 'The door', sub: 'Intro → quote → close. The basic script, start to finish.', ordered: true,
+    stages: [
+      {
+        id: 'opener', prompt: 'Greet them. Say who you are, who you’re with, and mention the green trucks.', title: 'The opener', short: 'Hey, how are you?',
+        lines: [{ say: 'Hey, how are you? I’m {name}, we’re just out with Dript, you might’ve seen our green trucks?' }],
+        why: 'Friendly and casual: a neighbour saying hi, not a salesperson. The <b>green trucks</b> give them something they’ve probably already seen around the area.',
+        mc: {
+          q: 'How do you open?',
+          right: 'Hey, how are you? I’m {name}, we’re just out with Dript, you might’ve seen our green trucks?',
+          wrong: [
+            'Hi, sorry to bother you. Have you got a minute to talk about your roof?',
+            'Hi there, are you the homeowner? We’re offering free quotes today.',
+            'G’day, I’m {name} from Dript. Is your roof due for a clean?',
+          ],
+          note: 'No apologising, no asking permission, no yes/no question they can shut the door on.',
+        },
+        cloze: [{ text: 'You might’ve seen our ___ trucks?', answer: 'green', options: ['green', 'white', 'big', 'Dript'] }],
+      },
+      {
+        id: 'reason', prompt: 'Tell them which neighbour you’re working for today and what you’re doing there. Point as you go.', title: 'Why you’re here', short: 'The job next door',
+        lines: [{ say: 'Today we’re at {addr} with {neighbour}, doing a roof wash, house wash and some pressure washing.', cue: 'Point to the roof, then the house, then the ground as you say each one.' }],
+        why: 'A real job, a real address and a real name: <b>proof</b> you’re working on their street. Pointing makes them look at their own roof, walls and driveway while you name each service.',
+        mc: {
+          q: 'Which line explains why you’re on their street?',
+          right: 'Today we’re at {addr} with {neighbour}, doing a roof wash, house wash and some pressure washing.',
+          wrong: [
+            'We’re doing a few houses around the area this week.',
+            'Your neighbour said you’d probably be interested in a clean.',
+            'We’ve done heaps of houses on this street and everyone loves us.',
+          ],
+          note: 'Specific beats vague: the address, the neighbour’s name and the services.',
+        },
+        cue: {
+          q: 'As you say “roof wash, house wash and some pressure washing”, you…',
+          right: 'Point to their roof, then the house, then the ground',
+          wrong: ['Hand them a flyer', 'Point back to the neighbour’s house', 'Nod slowly'],
+        },
+      },
+      {
+        id: 'offer', prompt: 'Say what you’re here to do: fill a couple of gaps in the calendar and give any neighbours who need it a quote, at a discounted rate because you’re already here.', title: 'The offer', short: 'Gaps in the calendar',
+        lines: [
+          { say: 'We’re in the area for the next few weeks and just had a couple of gaps in our calendar that we wanted to fill.' },
+          { say: 'It obviously makes our lives a lot easier staying in one place,', cue: 'Cheeky joke. Smile.' },
+          { say: 'but for any other neighbours who NEED a service, we just do it extra cheap, without our travel fee.', cue: 'Nod as you say this.' },
+        ],
+        why: 'Gives a <b>believable reason</b> it’s cheaper: you save on travel, so they do too. The joke keeps it light, and nodding gets them nodding along.',
+        mc: {
+          q: 'What’s the offer?',
+          right: 'For any other neighbours who NEED a service, we just do it extra cheap, without our travel fee.',
+          wrong: [
+            'We’re running 20% off this week, but only if you book today.',
+            'We’re the cheapest in Brisbane, so you won’t find better.',
+            'If you book now we’ll throw in a free gutter clean.',
+          ],
+          note: 'The discount has a reason (no travel), and there’s no deadline pressure.',
+        },
+        cue: {
+          q: 'While you say “…we just do it extra cheap, without our travel fee”, you…',
+          right: 'Nod',
+          wrong: ['Lean in and lower your voice', 'Shrug', 'Look down the street'],
+        },
+        cue2: {
+          q: 'How do you say “It obviously makes our lives a lot easier staying in one place”?',
+          right: 'As a cheeky joke, with a smile',
+          wrong: ['Seriously, so it sounds important', 'Apologetically', 'While checking your phone'],
+        },
+        cloze: [{ text: 'We’re in the area for the next few weeks and just had a couple of ___ in our calendar.', answer: 'gaps', options: ['gaps', 'spots', 'cancellations', 'days'] }],
+      },
+      {
+        id: 'quote', prompt: 'Offer the quote: you’re just doing quotes today, how long it takes, and that there’s no pressure.', title: 'Offer the quote', short: 'Takes like 2 minutes',
+        lines: [
+          { say: 'Today we’re just doing the quotes. Takes like 2 minutes, I run around really quick and price it up, and leave that with you.' },
+          { say: 'If that works while we’re here, cool. If not, you’ve got it for next time.', cue: 'Very indifferent here.' },
+        ],
+        why: 'Being indifferent takes the pressure off. They feel they can still say no, so <b>saying yes to the quote is easy</b>. You’re asking for 2 minutes, not a sale.',
+        mc: {
+          q: 'How do you ask to do the quote?',
+          right: 'Today we’re just doing the quotes, takes like 2 minutes… If that works while we’re here, cool, if not, you’ve got it for next time.',
+          wrong: [
+            'Can I come and have a look? It’s really important you get this done before summer.',
+            'I’ll just need your email and phone number first, then I’ll do a quote.',
+            'Most people book on the spot, so I’ll price it up and we can lock it in.',
+          ],
+          note: 'Low commitment, no pressure. They still feel free to say no.',
+        },
+        cue: {
+          q: 'When you offer the quote, your attitude is…',
+          right: 'Indifferent: if it works, cool, if not, no worries',
+          wrong: ['Excited: this deal won’t last', 'Serious: explain why they need it', 'Persistent: ask again if they hesitate'],
+        },
+        cloze: [{ text: 'If that works while we’re here, cool. If not, you’ve got it for ___ time.', answer: 'next', options: ['next', 'another', 'some', 'the right'] }],
+      },
+      {
+        id: 'lap', prompt: 'The quote’s a yes. What do you do now, and where do you try to talk to them?', title: 'Do the lap', short: 'Quote it up',
+        lines: [
+          { do: 'Do a lap of the house and quote it up.' },
+          { do: 'If you can meet them in the backyard to discuss, do.' },
+        ],
+        why: 'Meeting them in the backyard means you look at the problem <b>together</b>, away from the front door, which makes the conversation easier.',
+        mc: {
+          q: 'You’ve done the lap. Where’s the best place to go through the quote?',
+          right: 'In the backyard with them, if you can',
+          wrong: ['Back at the front door', 'Send it to them later', 'From the footpath'],
+        },
+      },
+      {
+        id: 'pres', prompt: 'Point out the worst area, make it normal, then explain why soft wash beats pressure washing.', title: 'The presentation', short: 'Soft wash, not pressure',
+        lines: [
+          { say: 'Yeah, so it’s obviously a bit worse on the pool side. Pretty much everyone has the same thing with the trees around here.' },
+          { say: 'We sort all of that. We don’t use a pressure washer on the roof or the house because we don’t want to cause any damage, and it really only gives the bio-growth a haircut.' },
+          { say: 'We use a soft-wash solution that we spray on, and it actually eats the root of that growth, which is important because killing the root ensures it’s gone for at least a year.' },
+        ],
+        why: 'Point out the worst spot, then make it normal (“everyone has it”). Then show you’re the expert: pressure washing damages and only trims the growth, while <b>soft wash kills the root</b>, so it lasts at least a year.',
+        mc: {
+          q: 'Why don’t we pressure wash roofs and houses?',
+          right: 'It can cause damage, and it only gives the bio-growth a haircut',
+          wrong: ['It takes too long', 'Council doesn’t allow it', 'It uses too much water'],
+        },
+        cloze: [
+          { text: 'It actually eats the ___ of that growth.', answer: 'root', options: ['root', 'top', 'colour', 'spores'] },
+          { text: 'Killing the root ensures it’s gone for at least a ___.', answer: 'year', options: ['year', 'month', 'summer', 'decade'] },
+          { text: 'Pretty much everyone has the same thing with the ___ around here.', answer: 'trees', options: ['trees', 'weather', 'humidity', 'birds'] },
+          { text: 'It really only gives the bio-growth a ___.', answer: 'haircut', options: ['haircut', 'clean', 'rinse', 'break'] },
+        ],
+      },
+      {
+        id: 'price', prompt: 'Give the usual price for a house this size, then take the travel fee off if it fits in about 3 weeks.', title: 'The price', short: 'Full price, then the travel fee off',
+        lines: [
+          { say: 'So, if you were to call us out today, for a house this size it’d usually be $1,100. A bit more expensive.', cue: 'Nod as you say this, to get their approval.' },
+          { say: 'But as I said, if we can squeeze it in within say about 3 weeks, we can knock the travel fee off the top, which is $150, so it’d only be $950.', cue: 'Indifferent, like it’s not a big deal. The price is literally irrelevant to you.' },
+        ],
+        why: 'Give the <b>full price first</b>, so $950 feels like a saving with a reason. Fitting it in within about 3 weeks is the condition. Stay indifferent: if you care about the price, they will too.',
+        mc: {
+          q: 'What’s the order when you give the price?',
+          right: 'Full price first ($1,100), then knock off the $150 travel fee if it fits in about 3 weeks: $950',
+          wrong: ['Lead with $950, then mention it’s usually more', 'Ask their budget, then quote to it', 'Say $950, and offer more off if they hesitate'],
+        },
+        cue: {
+          q: 'As you say “usually $1,100, a bit more expensive”, you…',
+          right: 'Nod, to get their approval',
+          wrong: ['Wince, like it hurts', 'Look away', 'Apologise for the price'],
+        },
+        cue2: {
+          q: 'How do you say “so it’d only be $950”?',
+          right: 'Indifferent, like it’s no big deal',
+          wrong: ['Excited: it’s a great deal!', 'Slowly, then wait in silence', 'Leaning in, like it’s a secret'],
+        },
+        priceDrill: true,
+      },
+      {
+        id: 'close', prompt: 'Ask for the booking: your normal close, then the assumptive one for a keen customer.', title: 'The close', short: 'How does that sound?',
+        lines: [
+          { say: 'How does that sound?' },
+          { say: 'Or: “Sound fair?” / “What do you think?”', alt: true },
+          { say: 'Assumptive: “Would 3 or 4 weeks from now suit you a bit better?”', cue: 'For customers who are pretty green.' },
+        ],
+        why: 'Ask a simple question and let them answer. With customers who are already keen, the <b>assumptive close</b> skips “yes or no” and goes straight to “when”.',
+        mc: {
+          q: 'Which is the assumptive close?',
+          right: 'Would 3 or 4 weeks from now suit you a bit better?',
+          wrong: ['So, do you want to book it or not?', 'Have a think and give us a call.', 'How does that sound?'],
+          note: '“How does that sound?” is your normal close. The assumptive one goes straight to when.',
+        },
+        mc2: {
+          q: 'Which of these is NOT one of your closes?',
+          right: 'Have a think about it and let me know.',
+          wrong: ['How does that sound?', 'Sound fair?', 'What do you think?'],
+          isNot: true,
+        },
+        cue: {
+          q: 'When do you use the assumptive close?',
+          right: 'With customers who are pretty green (already keen)',
+          wrong: ['With every customer', 'When they say it’s too expensive', 'Only if they ask about dates'],
+        },
+      },
+      {
+        id: 'lock', prompt: 'They said yes. What happens next, and what do you do at the end of the day?', title: 'Lock it in', short: 'Calendar, app, next door',
+        lines: [
+          { do: 'Find a time in the calendar and put it in the app as the job date.' },
+          { do: 'Move on to the next door.' },
+          { do: 'End of the day: Export → Send to agent. Your leads get sorted for you.' },
+        ],
+        why: 'Once it’s in the app with a date, you’re done. The agent books it, and the office sends the confirmation. <b>Don’t hang around</b>: the next door is waiting.',
+        mc: {
+          q: 'They say yes. What now?',
+          right: 'Find a time in the calendar, put it in the app as the job date, move on',
+          wrong: ['Email them the quote tonight from your phone', 'Text the office to book them in', 'Ask them to call the office to book'],
+        },
+        mc2: {
+          q: 'End of the day, you…',
+          right: 'Export → Send to agent',
+          wrong: ['Screenshot your leads to the office', 'Nothing, it sends itself', 'Email the leads to yourself'],
+        },
+      },
+    ],
+  },
+  {
+    // Intro + process are Tim's (2026-10-12). Reframes and the worked objections are DRAFTS in his style, for him to tweak.
+    id: 'objections', title: 'Objection handling', sub: 'What an objection really is, the 5-step process, reading the person, and the common ones at the door.',
+    requires: { mod: 'door', mastery: 0.6, tries: 3 },
+    stages: [
+      {
+        id: 'obj-what', title: 'What’s an objection?', short: 'It’s not a no',
+        prompt: 'What is an objection, and what is objection handling? Say both quotes if you can.',
+        lines: [
+          { quote: 'Objections are simply requests for more information rather than a rejection.', by: 'Bo Bennett' },
+          { text: '**An objection** is a concern that stops the customer saying yes right now. It isn’t a no. It’s them telling you what they still need to know.' },
+          { text: '**Objection handling** is how you respond: find the real concern behind what they said, answer it with value, and check it’s sorted before you go for the close.' },
+          { quote: 'Sales are contingent upon the attitude of the salesman, not the attitude of the prospect.', by: 'William Clement Stone' },
+        ],
+        why: 'If you hear “too expensive” as a request for more information, you stay calm and curious instead of getting defensive. <b>Your attitude sets the tone</b>, not theirs.',
+        mc: {
+          q: 'A customer says “That’s a bit expensive.” What is it really?',
+          right: 'A request for more information',
+          wrong: ['A no, so move on to the next door', 'A sign they can’t afford it', 'A reason to drop the price'],
+        },
+        mc2: {
+          q: 'According to William Clement Stone, sales depend on…',
+          right: 'The attitude of the salesperson',
+          wrong: ['The attitude of the prospect', 'The price', 'The time of day'],
+        },
+        cloze: [
+          { text: 'Objections are simply ___ for more information rather than a rejection.', answer: 'requests', options: ['requests', 'excuses', 'reasons', 'signs'] },
+          { text: 'Sales are contingent upon the attitude of the ___, not the attitude of the prospect.', answer: 'salesman', options: ['salesman', 'prospect', 'customer', 'manager'] },
+        ],
+      },
+      {
+        id: 'obj-process', title: 'The 5-step process', short: 'Pause → acknowledge → clarify → reframe → confirm',
+        prompt: 'Say the 5 steps of handling an objection, in order, and what you do at each.',
+        lines: [
+          { step: '1 · Pause and listen', do: 'Resist interrupting or reacting. Let them finish.' },
+          { step: '2 · Acknowledge & empathise', do: 'Ask open-ended follow-ups to dig beneath surface-level statements. Paraphrase their concern back to them, so you’re solving the root cause, not a symptom.' },
+          { step: '3 · Clarify the objection', say: 'It sounds like it’s not the value in actually getting a clean right now, but more so the cost? Is that right?' },
+          { step: '4 · Reframe with value', do: 'Shift the focus from the concern to what they get. See the next stage for examples.' },
+          { step: '5 · Validate and confirm', do: 'Check your answer has resolved their worry before you push to the close. Ask whether that makes sense. You should feel an unconscious approval to move forward, or they’ll stop you.' },
+          { say: 'Would a morning or an afternoon work better to get it locked in?' },
+          { text: '**Once you’ve re-closed, the first person to speak loses.** Go silent and let the prospect sell themself. This is imperative to your success.' },
+        ],
+        why: 'Most reps jump straight to step 4 and answer the wrong thing. <b>Steps 1–3 find the real concern</b>, so your reframe lands, and step 5 makes sure it did before you close.',
+        order: { q: 'Put the 5 steps in order', items: ['Pause and listen', 'Acknowledge & empathise', 'Clarify the objection', 'Reframe with value', 'Validate and confirm'] },
+        mc: {
+          q: 'What’s the first thing you do when you hear an objection?',
+          right: 'Pause and listen, without interrupting or reacting',
+          wrong: ['Answer it straight away', 'Offer a discount', 'Repeat the price'],
+        },
+        mc2: {
+          q: 'Why paraphrase their concern back to them?',
+          right: 'So you’re solving the root cause, not a symptom',
+          wrong: ['To fill the silence', 'To show you were listening', 'To buy time to think of an answer'],
+        },
+        cue: {
+          q: 'Which line clarifies the objection?',
+          right: 'It sounds like it’s not the value in getting a clean right now, but more so the cost? Is that right?',
+          wrong: ['So you don’t want it then?', 'Everyone says that at first.', 'What if I took another $100 off?'],
+        },
+        cue2: {
+          q: 'When do you go for the close?',
+          right: 'Once they’ve confirmed it makes sense and you feel them agree',
+          wrong: ['Straight after your reframe', 'As soon as they object', 'Only if they ask about dates'],
+        },
+        extra: [{ q: 'You’ve handled the objection and re-closed. Now what?', right: 'Go silent: the first person to speak loses', wrong: ['Explain it again in case they missed something', 'Offer a bit more off', 'Ask if they have any other questions'] }],
+        cloze: [{ text: 'Would a ___ or an afternoon work better to get it locked in?', answer: 'morning', options: ['morning', 'weekday', 'Monday', 'today'] }],
+      },
+      {
+        id: 'obj-reframe', title: 'Reframe with value', short: 'Pick what matters to them',
+        prompt: 'Give a value reframe for: the cost, the paint, the neighbour discount, the partner, and the house.',
+        lines: [
+          { step: 'The cost', say: 'It’s not just a clean, it’s a treatment. Killing the root means it stays clean for at least a year. A pressure wash looks cheaper, but it’s back in a few months.' },
+          { step: 'The paint', say: 'That growth holds moisture and eats into roof coatings and paint. A clean now is a fraction of re-coating or repainting later.' },
+          { step: 'The neighbour discount', say: 'Anyone else who needs a service, we can help out by doing it a lot cheaper without the travel fee, as we’re already here!', cue: 'This is great news for the customer. Say it like it is.' },
+          { step: 'The partner', say: 'I’m sure it’s not the clean home your partner would be upset about though, right?', cue: 'Assuming, but kindly. Not rude at all. You’re justifying why you can help them out with a bit of a deal.' },
+          { step: 'The house, and their health', say: 'A clean house is great, but for a lot of people it’s the health side: mould becoming more prominent and affecting them, especially older folks.' },
+        ],
+        why: 'A reframe moves their focus from what it costs to <b>what they get</b>. You don’t need the discount every time: depending on who’s in front of you, the clean house, their health or the paint might matter more. Be understanding, stay indifferent, and never pull things away from people.',
+        mc: {
+          q: 'They say “It’s a lot for a clean.” Best reframe?',
+          right: 'It’s a treatment, not just a clean: killing the root keeps it clean for at least a year',
+          wrong: ['It’s actually a fair price', 'Other companies charge more', 'I can probably take a bit more off'],
+        },
+        mc2: {
+          q: 'An older couple seem unsure. Which reframe might matter most to them?',
+          right: 'The health side: mould becoming more prominent and affecting them',
+          wrong: ['The price is only good while we’re here', 'It’ll look great if you sell', 'Everyone on the street is doing it'],
+        },
+        cloze: [{ text: 'It’s not just a clean, it’s a ___.', answer: 'treatment', options: ['treatment', 'service', 'bargain', 'wash'] }],
+      },
+      {
+        id: 'obj-chameleon', title: 'Be a chameleon', short: 'Lego-block your pitch',
+        prompt: 'They’re clearly short on time. Give the elevator pitch, straight to the quote.',
+        lines: [
+          { text: 'Read the person in front of you and **match them**. Your pitch is lego blocks: the neighbour’s job, the services, the discount, the soft wash, the clean house, health, the paint. Pick the blocks that suit them.' },
+          { text: 'For some people, the green truck chatter is enough to bore them instantly and get you kicked off the door. Then you go **straight to the point**:' },
+          { step: 'Elevator pitch', say: 'Hey, we’re with {neighbour}, your neighbour. Roof wash, house wash and pressure wash. We’re just doing quotes as we’re in the area. Had it recently? I’ll run around really quick and leave you with a price.', cue: 'If the house is dirty, even better: let them know it needs it too.' },
+        ],
+        why: 'You need to deliver the important info in a short amount of time. Knowing the blocks well is what lets you <b>cut the pitch down</b> without losing what matters.',
+        mc: {
+          q: 'They look impatient as soon as you start. What do you do?',
+          right: 'Drop the small talk and go straight to the elevator pitch: neighbour, services, quote',
+          wrong: ['Slow down and do the full pitch so they get everything', 'Apologise and come back another day', 'Go straight to the price'],
+        },
+        cloze: [{ text: 'We’re just doing quotes as we’re in the area. Had it ___?', answer: 'recently', options: ['recently', 'cleaned', 'before', 'done'] }],
+      },
+      {
+        id: 'obj-notint', title: '“Not interested”', short: 'Usually “we do it ourselves”',
+        prompt: 'They say: “Nah, not interested.” Handle it and re-close.',
+        lines: [
+          { step: '1 · Pause and listen', do: 'Let them finish. Stay relaxed, no reaction.' },
+          { step: '2 · Acknowledge', say: 'No worries at all. I imagine it’s something you guys typically do yourselves with the pressure washer?' },
+          { say: 'Yeah haha, totally get it, a lot of the neighbours are in the same boat. That’s actually why they called us out.' },
+          { step: '3 · Back to the presentation', say: 'Pressure washing only really gives the growth a haircut. Our solution kills the growth at the root, which is important, because that’s what keeps it gone.', cue: 'Point to the growth.' },
+          { step: '4 · Add value and re-close (at the price)', say: 'How about this: since you typically don’t pay for something like this, if we can make it a bit of a no-brainer, make today’s price $899, we can knock out the whole house for you on one condition: you don’t let any of the neighbours know you got a bit more of a deal, and you leave us a 5-star review on Google. Sound fair?', cue: 'E.g. $1,050 → $899, or $950 → $849. Then SILENCE.' },
+          { step: 'Or, before you’ve quoted: close on the quote', say: 'What I’ll do for you is run around real quick, pop back here in 2 minutes and grab an email to shoot the quote off to. That way you guys can discuss and let us know.', cue: 'Said as a favour to them.' },
+          { do: 'Do the quote, then use the no-brainer close above, since they don’t typically pay for it.' },
+        ],
+        why: '“Not interested” usually means they <b>do it themselves</b>. Guess it out loud, agree with them, and you’re back in the conversation. The no-brainer works because they’re not used to paying for it, and the condition (no telling, a 5-star review) makes the deal feel real.',
+        mc: {
+          q: 'They say “Not interested.” Best first line?',
+          right: 'No worries at all. I imagine it’s something you guys typically do yourselves with the pressure washer?',
+          wrong: ['Are you sure? Your roof really needs it.', 'Fair enough, have a good one.', 'Can I ask why not?'],
+        },
+        mc2: {
+          q: 'What are the two conditions on the no-brainer price?',
+          right: 'Don’t tell the neighbours they got a better deal, and leave a 5-star review on Google',
+          wrong: ['Book today and pay a deposit', 'Refer two neighbours and pay cash', 'Book within a week and sign up for maintenance'],
+        },
+        cue: {
+          q: 'You’ve said “…and you leave us a 5-star review on Google. Sound fair?” Now you…',
+          right: 'Go silent and let them sell themselves',
+          wrong: ['Explain the deal again', 'Add another bonus', 'Ask “so is that a yes?”'],
+        },
+        cloze: [{ text: 'A lot of the neighbours are in the same boat. That’s actually why they ___ us out.', answer: 'called', options: ['called', 'kicked', 'sent', 'asked'] }],
+      },
+      {
+        id: 'obj-price', title: '“Too expensive”', short: 'After the price',
+        prompt: 'They say: “That’s a bit expensive.” Handle it and re-close.',
+        lines: [
+          { step: '1 · Pause and listen', do: 'Let them finish. Don’t jump in to defend the price.' },
+          { step: '2 · Acknowledge', say: 'Yeah, totally fair. What were you expecting it to be, roughly?' },
+          { step: '3 · Clarify', say: 'So it sounds like it’s not the value in getting it cleaned right now, more so the cost? Is that right?' },
+          { step: '4 · Reframe', say: 'See, we don’t just pressure wash. We want to kill that bio-growth for you and make sure it’s gone for a year or two, which is our warranty: if it comes back in a year, we come back for free.', cue: 'Point to the growth.' },
+          { step: '5 · Confirm & re-close', say: 'Sound fair?', cue: 'Then SILENCE.' },
+        ],
+        why: 'Re-explain the <b>value</b>: you’re killing it, not trimming it, and the warranty means they can’t lose. You don’t need to push the discount every time.',
+        mc: {
+          q: 'They say “That’s a bit expensive.” Which reframe fits?',
+          right: 'We don’t just pressure wash. We kill the bio-growth so it’s gone for a year or two, and if it comes back in a year, we come back for free',
+          wrong: ['I can do another $100 off if you book today', 'It’s actually cheap for what you get, honestly', 'What would you be happy to pay?'],
+        },
+        cue: {
+          q: 'What’s the warranty?',
+          right: 'If it comes back within a year, we come back for free',
+          wrong: ['Money back if they’re not happy', 'A free re-clean after 6 months', 'There isn’t one'],
+        },
+      },
+      {
+        id: 'obj-partner', title: '“Ask my partner”', short: 'Push once, carefully',
+        prompt: 'They say: “I’ll have to check with my partner.” Handle it and re-close.',
+        lines: [
+          { step: '1 · Pause and listen', do: 'Let them finish. Be careful here: push one time only.' },
+          { step: '2 · Acknowledge & ask', say: 'Of course, makes sense. Is it more the price they’d want to know about, or whether it’s worth doing?', cue: 'Ask about price or value, once.' },
+          { step: '3 · Reframe', say: 'I’m sure it’s not the clean home your partner would be upset about though, right?', cue: 'Assuming, but kindly. Not rude at all.' },
+          { say: 'So what I’ll do, I’ll make it a bit of a no-brainer for you.', cue: 'You’re justifying why you can help them out with a bit of a deal. Doing them a favour.' },
+          { step: '4 · Add value and re-close', say: 'What if I get the guys to throw in every window, frame and sill around the house for free, on us? Would that sweeten the deal enough?', cue: 'Then SILENCE.' },
+          { do: 'If they say yes, write the free windows, frames and sills in the lead notes so the crew knows.' },
+          { step: 'If they don’t want to pick a date', say: 'No pressure at all. I’ll email the quote through later.', cue: 'Then follow up with a call that week.' },
+        ],
+        why: 'Partner objections are often real, so <b>push once, then help</b>. The free windows make it easy to say yes without their partner, and if they still won’t pick a date, the email and a call that week keep it warm.',
+        mc: {
+          q: 'They need to check with their partner. How hard do you push?',
+          right: 'Once: ask if it’s the price or the value, then offer the no-brainer',
+          wrong: ['Keep going until they agree', 'Not at all, leave the quote and go', 'Ask to speak to the partner now'],
+        },
+        extra: [{ q: 'Which line reframes the partner objection?', right: 'I’m sure it’s not the clean home your partner would be upset about though, right?', wrong: ['Your partner will thank you for it.', 'Can’t you just decide yourself?', 'What if your partner says no?'], note: 'Assuming, but kindly. It sets up why you can help them out with a deal.' }],
+        mc2: {
+          q: 'What do you throw in to sweeten the deal?',
+          right: 'Every window, frame and sill around the house, free',
+          wrong: ['$100 off', 'A free gutter clean', 'A second roof clean next year'],
+        },
+        cue: {
+          q: 'They still won’t pick a date. What now?',
+          right: 'No pressure: email the quote later, then follow up with a call that week',
+          wrong: ['Book them in anyway as tentative', 'Tell them the deal ends today', 'Leave it and don’t follow up'],
+        },
+      },
+      {
+        id: 'obj-diy', title: '“We do it ourselves”', short: 'They own a pressure washer',
+        prompt: 'They say: “We just pressure wash it ourselves.” Handle it and re-close.',
+        lines: [
+          { step: '1 · Pause and listen', do: 'Let them finish.' },
+          { step: '2 · Acknowledge', say: 'Yeah haha, totally get it, a lot of the neighbours are in the same boat. That’s actually why they called us out.' },
+          { step: '3 · Reframe', say: 'Pressure washing only gives the bio-growth a haircut, so it’s back in a few months, and it can damage the roof. Our solution kills it at the root, so it’s gone for a year or two, and if it comes back in a year, we come back for free.' },
+          { step: '4 · Add value and re-close', say: 'Since you typically don’t pay for something like this, if we can make it a bit of a no-brainer, make today’s price $899, on one condition: you don’t tell the neighbours, and you leave us a 5-star review on Google. Sound fair?', cue: 'Then SILENCE.' },
+        ],
+        why: 'Agree first, then teach. You’re not telling them they’re wrong, just that <b>pressure only trims it</b>. Then make it a no-brainer, because they’re not used to paying for it.',
+        mc: {
+          q: 'They pressure wash it themselves. Which reframe fits?',
+          right: 'Pressure only gives it a haircut and can damage the roof. Our solution kills it at the root, so it’s gone for a year or two.',
+          wrong: ['You really shouldn’t be doing that yourself.', 'Fair enough, sounds like you’ve got it sorted.', 'Ours is just a better pressure washer.'],
+        },
+      },
+      {
+        id: 'obj-later', title: '“I’m busy” / “Not right now”', short: 'Match their pace',
+        prompt: 'They’re clearly busy. Get in first, keep it quick, and close on the quote.',
+        lines: [
+          { step: '1 · Read them', do: 'Respond in the same tone. Busy people are the best ones to match: most salespeople can’t fit into their busy day, so they don’t know what to do when you can.' },
+          { step: '2 · Get in first', say: 'Ah, working from home today?', cue: 'If you can tell they’re busy, say it before they can.' },
+          { step: '3 · Keep it short', say: 'Great, no worries, I’ll keep it super quick.' },
+          { step: '4 · Elevator pitch', say: 'We’re with {neighbour}, your neighbour. Roof wash, house wash and pressure wash. We’re just doing quotes as we’re in the area. Had it recently? I’ll run around really quick and leave you with a price.', cue: 'Very direct.' },
+          { step: '5 · Close for the quote', do: 'Close them on the spot for the quote, then go silent.' },
+        ],
+        why: 'Saying “working from home?” before they say “I’m busy” takes the objection away. Then <b>match their pace</b>: short, direct, and gone in 2 minutes.',
+        mc: {
+          q: 'You can tell they’re busy. What do you say first?',
+          right: 'Ah, working from home today?',
+          wrong: ['Sorry, is this a bad time?', 'I’ll come back later then.', 'This will only take 10 minutes.'],
+        },
+        cue: {
+          q: 'How do you pitch to someone who’s busy?',
+          right: 'Match their tone: super quick, very direct, then close on the quote',
+          wrong: ['Slow and relaxed to calm them down', 'The full pitch so they don’t miss anything', 'Leave a flyer and go'],
+        },
+      },
+    ],
+  },
+  { id: 'body', title: 'Body language', sub: 'Where to stand, pointing, nodding, smiling', locked: true },
+  { id: 'tone', title: 'Tone of voice', sub: 'Indifferent, casual, confident', locked: true },
+  { id: 'content', title: 'Know the services', sub: 'Soft wash, roof, house, pressure, windows, solar', locked: true },
+];
+
+// ---------- state ----------
+let S = load();
+function load() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch {}
+  s = s || { name: '', stages: {}, runs: [] };
+  s.tries = s.tries || []; s.unlocked = s.unlocked || {};
+  if (!s.name) {
+    try { const app = JSON.parse(localStorage.getItem('dript_settings') || '{}'); if (app.repName) s.name = app.repName.split(' ')[0]; } catch {}
+  }
+  return s;
+}
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch {} }
+function stageState(id) { return (S.stages[id] = S.stages[id] || { seen: false, results: [] }); }
+function record(id, score) { const st = stageState(id); st.results.push(score); st.results = st.results.slice(-8); save(); }
+function mastery(id) { const r = stageState(id).results; return r.length ? r.reduce((a, b) => a + b, 0) / r.length : 0; }
+function moduleMastery(m) { return m.stages.reduce((a, s) => a + mastery(s.id), 0) / m.stages.length; }
+const modById = (id) => MODULES.find((m) => m.id === id);
+function failedTries(modId, under) { return S.tries.filter((t) => t.mod === modId && t.score < under).length; }
+function isUnlocked(m) {
+  if (m.locked) return false;
+  if (!m.requires || S.unlocked[m.id]) return true;
+  const req = m.requires, prev = modById(req.mod);
+  const why = moduleMastery(prev) >= req.mastery ? 'mastery' : failedTries(req.mod, req.mastery) >= req.tries ? 'tries' : null;
+  if (why) { S.unlocked[m.id] = why; save(); }
+  return !!why;
+}
+/** Logs a full drill or run, and returns any module it just unlocked. */
+function logTry(m, score) {
+  const before = MODULES.filter((x) => x.requires && !x.locked && S.unlocked[x.id]).map((x) => x.id);
+  S.tries.push({ mod: m.id, score, at: Date.now() }); S.tries = S.tries.slice(-100); save();
+  return MODULES.find((x) => x.requires && !before.includes(x.id) && isUnlocked(x)) || null;
+}
+function unlockBanner(u) {
+  if (!u) return '';
+  const prev = modById(u.requires.mod);
+  return `<div class="fb good" style="margin-bottom:14px"><b>🔓 ${esc(u.title)} unlocked</b>${S.unlocked[u.id] === 'tries'
+    ? `You’ve put in the reps. Start on ${esc(u.title)}, and keep coming back to ${esc(prev.title)}.`
+    : `You’re over ${pct(u.requires.mastery)} on ${esc(prev.title)}.`}</div>`;
+}
+
+// ---------- helpers ----------
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fill = (t) => esc(t)
+  .replace(/\{name\}/g, `<span class="tok" title="Your name">${esc(S.name || 'Tim')}</span>`)
+  .replace(/\{addr\}/g, '<span class="tok" title="Swap in today’s job">#123 Smith St</span>')
+  .replace(/\{neighbour\}/g, '<span class="tok" title="Swap in the neighbour’s name">Terry</span>');
+const plain = (t) => t.replace(/\{name\}/g, S.name || 'Tim').replace(/\{addr\}/g, '#123 Smith St').replace(/\{neighbour\}/g, 'Terry');
+const money = (n) => '$' + n.toLocaleString('en-AU');
+const pct = (x) => Math.round(x * 100) + '%';
+
+let backTo = null;
+function screen(title, html, back, right) {
+  $('title').textContent = title;
+  $('main').innerHTML = html;
+  backTo = back || null;
+  $('back').hidden = !back;
+  $('back').textContent = '‹ Back';
+  $('right').innerHTML = right ? right.label : '';
+  $('right').onclick = right ? right.fn : null;
+  window.scrollTo(0, 0);
+  stopAudio();
+}
+$('back').onclick = () => backTo && backTo();
+
+// ---------- audio: Tim's voiceover (when added) and recording yourself ----------
+let player = null, recorder = null, chunks = [], myTake = null;
+function stopAudio() {
+  if (player) { player.pause(); player = null; }
+  if (recorder && recorder.state === 'recording') recorder.stop();
+}
+function audioBar(stage) {
+  return `<div class="audio">
+    ${stage.audio ? `<button class="pill" data-play="${esc(stage.audio)}">▶ Hear Tim</button>` : `<button class="pill" disabled title="Tim hasn’t recorded this one yet">▶ Voiceover coming</button>`}
+    <button class="pill" id="rec">● Record yourself</button>
+    <button class="pill" id="mine" hidden>▶ Play yours</button>
+  </div>`;
+}
+function wireAudio() {
+  document.querySelectorAll('[data-play]').forEach((b) => b.onclick = () => { stopAudio(); player = new Audio(b.dataset.play); player.play(); });
+  const rec = $('rec'), mine = $('mine');
+  if (!rec) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) { rec.disabled = true; rec.title = 'Recording isn’t available in this browser'; return; }
+  myTake = null;
+  rec.onclick = async () => {
+    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks = [];
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        myTake = URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType || 'audio/mp4' }));
+        rec.textContent = '● Record again'; rec.classList.remove('rec'); mine.hidden = false;
+      };
+      recorder.start();
+      rec.textContent = '■ Stop'; rec.classList.add('rec');
+    } catch { rec.disabled = true; rec.textContent = 'Mic blocked'; }
+  };
+  mine.onclick = () => { if (myTake) { stopAudio(); player = new Audio(myTake); player.play(); } };
+}
+
+// ---------- home ----------
+function home() {
+  if (!S.name) return askName();
+  const mods = MODULES.map((m, i) => !isUnlocked(m)
+    ? `<div class="card mod locked"><span class="tag">${m.locked ? 'Coming' : '🔒 Locked'}</span><div class="t">${i + 1}. ${esc(m.title)}</div><div class="s">${esc(m.sub)}</div>${m.locked ? '' : lockNote(m)}</div>`
+    : `<button class="card mod" data-mod="${m.id}"><div class="t">${i + 1}. ${esc(m.title)}</div><div class="s">${esc(m.sub)}</div>
+        <div class="bar"><i style="width:${pct(moduleMastery(m))}"></i></div><div class="muted" style="margin-top:6px">${pct(moduleMastery(m))} mastered</div></button>`).join('');
+  screen('Training', `<div class="label">Modules</div>${mods}
+    <div class="muted" style="margin-top:14px">Learn each stage, drill it until it sticks, then run the whole pitch from memory. Your progress stays on this phone.</div>`,
+    null, { label: esc(S.name), fn: askName });
+  // Opened from the app (Rewards → Training): a way back to it.
+  if (/learn\.html$/.test(location.pathname)) { $('back').hidden = false; $('back').textContent = '‹ App'; backTo = () => { location.href = './'; }; }
+  document.querySelectorAll('[data-mod]').forEach((b) => b.onclick = () => moduleHome(MODULES.find((m) => m.id === b.dataset.mod)));
+}
+function lockNote(m) {
+  const req = m.requires, prev = modById(req.mod);
+  const left = Math.max(0, req.tries - failedTries(req.mod, req.mastery));
+  return `<div class="bar"><i style="width:${pct(Math.min(1, moduleMastery(prev) / req.mastery))}"></i></div>
+    <div class="muted" style="margin-top:6px">Unlocks at ${pct(req.mastery)} on ${esc(prev.title)} (you’re on ${pct(moduleMastery(prev))}), or after ${left} more ${left === 1 ? 'try' : 'tries'} at a drill or run.</div>`;
+}
+function askName() {
+  screen('Training', `<div class="label">Your first name</div>
+    <input class="name" id="nm" value="${esc(S.name)}" placeholder="e.g. Sam" autocomplete="given-name">
+    <div class="muted" style="margin:8px 0 18px">It goes into the script where Tim says “I’m Tim”.</div>
+    <button class="btn primary" id="go" style="width:100%">Start</button>`, S.name ? home : null);
+  $('go').onclick = () => { const v = $('nm').value.trim(); if (!v) return; S.name = v; save(); home(); };
+}
+
+// ---------- module ----------
+function moduleHome(m) {
+  const stages = m.stages.map((s, i) => {
+    const mm = mastery(s.id);
+    return `<button class="card stage" data-st="${i}"><span class="n ${mm >= .8 ? 'done' : ''}">${mm >= .8 ? '✓' : i + 1}</span>
+      <span class="x"><b>${esc(s.title)}</b><span>${esc(s.short)}</span></span><span class="m">${stageState(s.id).results.length ? pct(mm) : stageState(s.id).seen ? 'read' : ''}</span></button>`;
+  }).join('');
+  const lastRun = S.runs.filter((r) => r.mod === m.id).slice(-1)[0];
+  screen(m.title, `
+    <div class="card"><div class="muted">Mastered</div><div class="big" style="margin:4px 0 2px">${pct(moduleMastery(m))}</div>
+      <div class="bar"><i style="width:${pct(moduleMastery(m))}"></i></div>
+      ${lastRun ? `<div class="muted" style="margin-top:8px">Last full run: ${pct(lastRun.score)} · ${new Date(lastRun.at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</div>` : ''}</div>
+    <div class="row" style="margin:14px 0 4px">
+      <button class="btn" id="learn">1 · Learn</button><button class="btn" id="drill">2 · Drill</button><button class="btn primary" id="run">3 · Run it</button>
+    </div>
+    <div class="muted" style="margin:6px 2px 0"><b style="color:var(--text)">Learn</b> reads it with Tim’s notes. <b style="color:var(--text)">Drill</b> tests you with quick questions, more on your weak spots. <b style="color:var(--text)">Run it</b>: say it all out loud from memory.</div>
+    <div class="label">Stages</div>${stages}`, home);
+  $('learn').onclick = () => learn(m, 0);
+  $('drill').onclick = () => drill(m);
+  $('run').onclick = () => run(m, 0, []);
+  document.querySelectorAll('[data-st]').forEach((b) => b.onclick = () => learn(m, +b.dataset.st, true));
+}
+
+// ---------- learn ----------
+const bold = (t) => fill(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+function lineHtml(l) {
+  if (l.quote) return `<p class="qt">“${esc(l.quote)}”<span>— ${esc(l.by)}</span></p>`;
+  if (l.text) return `<p class="def">${bold(l.text)}</p>`;
+  const step = l.step ? `<span class="step">${esc(l.step)}</span>` : '';
+  const inner = l.do
+    ? `<p class="do">${step}${fill(l.do)}${l.cue ? `<span class="cue">${esc(l.cue)}</span>` : ''}</p>`
+    : `<p class="say" ${l.alt ? 'style="font-size:15px;color:var(--muted-strong)"' : ''}>${step}${l.alt ? fill(l.say) : '“' + fill(l.say) + '”'}${l.cue ? `<span class="cue">${esc(l.cue)}</span>` : ''}</p>`;
+  return inner;
+}
+function linesHtml(s) {
+  return s.lines.map(lineHtml).join('');
+}
+function learn(m, i, single) {
+  const s = m.stages[i];
+  stageState(s.id).seen = true; save();
+  const last = i === m.stages.length - 1;
+  const bars = m.stages.map((_, k) => `<i class="${k <= i ? 'on' : ''}"></i>`).join('');
+  screen(m.title, `
+    <div class="progress">${bars}</div>
+    <div class="label">Stage ${i + 1} of ${m.stages.length} · ${esc(s.title)}</div>
+    <div class="card">${linesHtml(s)}</div>
+    ${audioBar(s)}
+    <div class="label">Why it works</div><div class="why">${s.why}</div>
+    <div class="sticky-foot"><div class="row">
+      ${i > 0 ? '<button class="btn ghost" id="prev">‹ Previous</button>' : ''}
+      <button class="btn" id="test">Test this stage</button>
+      <button class="btn primary" id="next">${last ? 'Done' : 'Next ›'}</button>
+    </div></div>`, () => moduleHome(m));
+  wireAudio();
+  if ($('prev')) $('prev').onclick = () => learn(m, i - 1, single);
+  $('next').onclick = () => last ? moduleHome(m) : learn(m, i + 1, single);
+  $('test').onclick = () => drill(m, s.id);
+}
+
+// ---------- questions ----------
+function questionsFor(m, s, i) {
+  const qs = [];
+  const mc = (o, kind) => qs.push({ stage: s.id, kind, q: o.q, quote: o.quote, options: shuffle([{ t: o.right, ok: true }, ...o.wrong.map((t) => ({ t, ok: false }))]), note: o.note, answer: o.right });
+  if (s.mc) mc(s.mc, 'mc');
+  if (s.mc2) mc(s.mc2, 'mc');
+  if (s.cue) mc(s.cue, 'cue');
+  if (s.cue2) mc(s.cue2, 'cue');
+  (s.extra || []).forEach((o) => mc(o, 'mc'));
+  (s.cloze || []).forEach((c) => qs.push({ stage: s.id, kind: 'cloze', text: c.text, answer: c.answer, options: shuffle(c.options) }));
+  // What comes next?
+  if (m.ordered && i < m.stages.length - 1) {
+    const next = m.stages[i + 1];
+    const others = shuffle(m.stages.filter((x, k) => k !== i + 1 && k !== i)).slice(0, 3);
+    qs.push({
+      stage: next.id, kind: 'mc', q: 'What comes next?', quote: lastLine(s),
+      options: shuffle([{ t: next.title + ': ' + next.short, ok: true }, ...others.map((o) => ({ t: o.title + ': ' + o.short, ok: false }))]),
+      answer: next.title + ': ' + next.short,
+    });
+  }
+  if (s.priceDrill) for (let k = 0; k < 2; k++) qs.push(priceQ(s.id));
+  if (s.order) qs.push({ stage: s.id, kind: 'order', q: s.order.q, items: s.order.items });
+  return qs;
+}
+function lastLine(s) { const l = s.lines.filter((x) => !x.alt).slice(-1)[0]; return plain(l.say || l.do || l.text || l.quote); }
+function priceQ(stageId) {
+  const usual = 700 + 50 * Math.floor(Math.random() * 27); // $700–$2,000
+  const right = usual - TRAVEL_FEE;
+  const wrong = shuffle([usual, usual - 100, usual - 200, right + 50, right - 50].filter((x) => x !== right)).slice(0, 3);
+  return {
+    stage: stageId, kind: 'price', q: `Usually ${money(usual)}. They can fit in within about 3 weeks. What’s your price?`,
+    options: shuffle([{ t: money(right), ok: true }, ...wrong.map((w) => ({ t: money(w), ok: false }))]),
+    answer: money(right), note: `${money(usual)} less the ${money(TRAVEL_FEE)} travel fee.`,
+  };
+}
+function orderQ(m) { return { stage: null, kind: 'order', q: 'Put the pitch in order', items: m.stages.map((s) => s.title) }; }
+
+// ---------- drill ----------
+function drill(m, onlyStage) {
+  let pool = [];
+  m.stages.forEach((s, i) => { if (!onlyStage || s.id === onlyStage) pool.push(...questionsFor(m, s, i)); });
+  if (!onlyStage) {
+    // Weak stages first: weight by (1 - mastery), then fill to 12, plus the order question.
+    pool = pool.map((q) => ({ q, w: Math.random() * (1.4 - mastery(q.stage)) })).sort((a, b) => b.w - a.w).map((x) => x.q).slice(0, m.ordered ? 11 : 12);
+    pool = shuffle(pool);
+    if (m.ordered) pool.splice(Math.floor(Math.random() * pool.length), 0, orderQ(m));
+  } else pool = shuffle(pool);
+  const st = { m, qs: pool, i: 0, right: 0, results: [], onlyStage };
+  ask(st);
+}
+function bar(st) { return `<div class="progress">${st.qs.map((_, k) => `<i class="${k < st.i ? (st.results[k] ? 'on' : 'bad') : ''}"></i>`).join('')}</div>`; }
+function ask(st) {
+  if (st.i >= st.qs.length) return drillDone(st);
+  const q = st.qs[st.i];
+  const title = st.onlyStage ? st.m.stages.find((s) => s.id === st.onlyStage).title : 'Drill';
+  const back = () => moduleHome(st.m);
+  if (q.kind === 'order') return askOrder(st, q, title, back);
+  if (q.kind === 'cloze') {
+    screen(title, `${bar(st)}<div class="q">Fill the gap</div>
+      <div class="card"><p class="say" style="margin:0">“${esc(q.text).replace('___', '<span class="blank" id="blank">?</span>')}”</p></div>
+      <div class="chips" id="opts">${q.options.map((o) => `<button class="chip" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div><div id="after"></div>`, back);
+    document.querySelectorAll('#opts .chip').forEach((b) => b.onclick = () => {
+      const ok = b.dataset.o === q.answer;
+      $('blank').textContent = q.answer;
+      document.querySelectorAll('#opts .chip').forEach((c) => { c.disabled = true; if (c.dataset.o === q.answer) c.classList.add('right'); else if (c === b) c.classList.add('wrong'); else c.classList.add('used'); });
+      answered(st, q, ok);
+    });
+    return;
+  }
+  const label = q.kind === 'cue' ? 'Delivery' : q.kind === 'price' ? 'Price it' : 'Script';
+  screen(title, `${bar(st)}<div class="label" style="margin-top:0">${label}</div><div class="q">${esc(q.q)}</div>
+    ${q.quote ? `<p class="quote">“${esc(q.quote)}”</p>` : '<div style="height:8px"></div>'}
+    <div id="opts">${q.options.map((o, k) => `<button class="opt" data-k="${k}"><span class="k">${'ABCD'[k]}</span>${fill(o.t)}</button>`).join('')}</div><div id="after"></div>`, back);
+  document.querySelectorAll('#opts .opt').forEach((b) => b.onclick = () => {
+    const ok = q.options[+b.dataset.k].ok;
+    document.querySelectorAll('#opts .opt').forEach((c, k) => { c.disabled = true; if (q.options[k].ok) c.classList.add('right'); else if (c === b) c.classList.add('wrong'); else c.classList.add('dim'); });
+    answered(st, q, ok);
+  });
+}
+function answered(st, q, ok) {
+  st.results[st.i] = ok;
+  if (ok) st.right++;
+  if (q.stage) record(q.stage, ok ? 1 : 0);
+  const stage = q.stage && st.m.stages.find((s) => s.id === q.stage);
+  $('after').innerHTML = `<div class="fb ${ok ? 'good' : 'bad'}"><b>${ok ? 'Nice.' : 'Not quite.'}</b>${q.note ? esc(q.note) : !ok && q.kind !== 'cloze' ? 'Answer: ' + fill(q.answer) : ''}${!ok && stage ? `<div class="muted" style="margin-top:6px">Stage: ${esc(stage.title)}</div>` : ''}</div>
+    <button class="btn primary" id="nx" style="width:100%">${st.i === st.qs.length - 1 ? 'See results' : 'Next'}</button>`;
+  $('nx').onclick = () => { st.i++; ask(st); };
+  $('nx').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function askOrder(st, q, title, back) {
+  const picked = [];
+  const items = shuffle(q.items);
+  const draw = () => {
+    screen(title, `${bar(st)}<div class="q">${esc(q.q)}</div><div class="qsub">Tap them from first to last.</div>
+      <div class="card" style="min-height:60px">${picked.length ? picked.map((t, k) => `<div style="padding:3px 0"><span class="muted">${k + 1}.</span> ${esc(t)}</div>`).join('') : '<span class="muted">…</span>'}</div>
+      <div class="chips" id="opts">${items.map((t) => `<button class="chip ${picked.includes(t) ? 'used' : ''}" data-o="${esc(t)}" ${picked.includes(t) ? 'disabled' : ''}>${esc(t)}</button>`).join('')}</div>
+      <div class="row" style="margin-top:14px"><button class="btn ghost" id="undo" ${picked.length ? '' : 'disabled'}>Undo</button></div><div id="after"></div>`, back);
+    document.querySelectorAll('#opts .chip').forEach((b) => b.onclick = () => { picked.push(b.dataset.o); picked.length === items.length ? check() : draw(); });
+    $('undo').onclick = () => { picked.pop(); draw(); };
+  };
+  const check = () => {
+    draw();
+    const wrongAt = picked.findIndex((t, k) => t !== q.items[k]);
+    const ok = wrongAt < 0;
+    $('undo').disabled = true;
+    document.querySelectorAll('#opts .chip').forEach((c) => c.disabled = true);
+    st.results[st.i] = ok; if (ok) st.right++;
+    if (q.stage) record(q.stage, ok ? 1 : 0);
+    $('after').innerHTML = `<div class="fb ${ok ? 'good' : 'bad'}"><b>${ok ? 'Spot on.' : 'Not quite.'}</b>${ok ? '' : q.items.map((t, k) => `${k + 1}. ${esc(t)}`).join('<br>')}</div>
+      <button class="btn primary" id="nx" style="width:100%">${st.i === st.qs.length - 1 ? 'See results' : 'Next'}</button>`;
+    $('nx').onclick = () => { st.i++; ask(st); };
+  };
+  draw();
+}
+function drillDone(st) {
+  const score = st.right / st.qs.length;
+  const unlocked = st.onlyStage ? null : logTry(st.m, score);
+  const weak = st.m.stages.filter((s) => mastery(s.id) < .8 && (stageState(s.id).results.length));
+  screen('Results', `${unlockBanner(unlocked)}<div class="card center" style="padding:24px 16px">
+      <div class="big">${st.right}/${st.qs.length}</div>
+      <div class="muted" style="margin-top:6px">${score >= .9 ? 'Locked in.' : score >= .7 ? 'Getting there. Go again and it’ll stick.' : 'Have another read through Learn, then drill again.'}</div></div>
+    ${weak.length ? `<div class="label">Work on</div>${weak.map((s) => `<button class="card stage" data-st="${st.m.stages.indexOf(s)}"><span class="n">${st.m.stages.indexOf(s) + 1}</span><span class="x"><b>${esc(s.title)}</b><span>${pct(mastery(s.id))} right lately</span></span><span class="m">Learn ›</span></button>`).join('')}` : ''}
+    <div class="row" style="margin-top:14px"><button class="btn" id="again">Drill again</button><button class="btn primary" id="done">Done</button></div>`, () => moduleHome(st.m));
+  document.querySelectorAll('[data-st]').forEach((b) => b.onclick = () => learn(st.m, +b.dataset.st, true));
+  $('again').onclick = () => drill(st.m, st.onlyStage);
+  $('done').onclick = () => moduleHome(st.m);
+}
+
+// ---------- run it: whole pitch from memory, out loud ----------
+function run(m, i, grades) {
+  if (i >= m.stages.length) return runDone(m, grades);
+  const s = m.stages[i];
+  const bars = m.stages.map((_, k) => `<i class="${k < i ? (grades[k] >= 1 ? 'on' : 'bad') : ''}"></i>`).join('');
+  screen('Run it', `<div class="progress">${bars}</div>
+    <div class="label" style="margin-top:0">Stage ${i + 1} of ${m.stages.length} · ${esc(s.title)}</div>
+    <div class="q">${esc(s.prompt || s.title)}</div>
+    <div class="qsub">Say it out loud, like you’re at the door. Then reveal and be honest.</div>
+    ${audioBar({})}
+    <div class="card hidden-lines" id="lines">${linesHtml(s)}</div>
+    <div id="act"><button class="btn primary" id="reveal" style="width:100%">Reveal</button></div>`, () => moduleHome(m));
+  wireAudio();
+  $('reveal').onclick = () => {
+    $('lines').classList.remove('hidden-lines');
+    $('act').innerHTML = `<div class="label">How did you go?</div><div class="grade">
+      <button class="btn g0" data-g="0">Missed it</button><button class="btn g1" data-g="0.5">Close</button><button class="btn g2" data-g="1">Nailed it</button></div>`;
+    document.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { const g = +b.dataset.g; record(s.id, g); grades[i] = g; run(m, i + 1, grades); });
+  };
+}
+function runDone(m, grades) {
+  const score = grades.reduce((a, b) => a + b, 0) / grades.length;
+  S.runs.push({ mod: m.id, at: Date.now(), score }); S.runs = S.runs.slice(-30); save();
+  const unlocked = logTry(m, score);
+  const label = (g) => g >= 1 ? '<span style="color:var(--ok)">Nailed</span>' : g > 0 ? '<span style="color:var(--warn)">Close</span>' : '<span style="color:var(--danger)">Missed</span>';
+  screen('Results', `${unlockBanner(unlocked)}<div class="card center" style="padding:24px 16px"><div class="big">${pct(score)}</div>
+      <div class="muted" style="margin-top:6px">${score >= .9 ? 'Door ready.' : 'Learn the misses, then run it again.'}</div></div>
+    <div class="label">Stage by stage</div><div class="card breakdown">${m.stages.map((s, k) => `<div class="stage"><span class="n">${k + 1}</span><span class="x"><b>${esc(s.title)}</b></span><span class="m">${label(grades[k])}</span></div>`).join('')}</div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="again">Run again</button><button class="btn primary" id="done">Done</button></div>`, () => moduleHome(m));
+  $('again').onclick = () => run(m, 0, []);
+  $('done').onclick = () => moduleHome(m);
+}
+
+home();
+</script>
+</body>
+</html>

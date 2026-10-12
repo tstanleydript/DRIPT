@@ -68,6 +68,10 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 .content { flex: 1; padding: 16px 20px 20px; }
 .view { display: none; }
 .view.active { display: block; }
+.training-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--border-mid); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+.training-link b { display: block; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
+.training-link span span { display: block; font-size: 12px; color: var(--muted-strong); margin-top: 2px; }
+.training-link .arrow { color: var(--accent); font-size: 22px; }
 
 /* Monthly ring block */
 .ring-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
@@ -797,6 +801,7 @@ button.stat-mini:active { background: var(--card-active); }
 
 <!-- REWARDS -->
 <div class="view" id="view-rewards">
+  <a class="training-link" href="learn.html"><span><b>Training</b><span>Learn the pitch and objection handling</span></span><span class="arrow">›</span></a>
   <div class="rewards-top">
     <div class="rewards-stat">
       <div class="lbl">Banked</div>
@@ -949,7 +954,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V21</p>
+  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V22</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1953,7 +1958,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V21';
+const APP_VERSION = 'V22';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
