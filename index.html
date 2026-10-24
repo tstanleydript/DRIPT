@@ -7,6 +7,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dript">
 <meta name="theme-color" content="#141414">
+<script>
+// Colour theme: "market" (Market Open, light, the default) or "classic" (the original dark look).
+// Saved per phone in Settings → Look; Training and the Call list use the same choice.
+(function () {
+  var t = 'market';
+  try { t = localStorage.getItem('dript_theme') || 'market'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+  if (t === 'market') {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff');
+    document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'default');
+  }
+})();
+</script>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Dript Doorknocker</title>
 <style>
@@ -27,7 +40,52 @@
   --rarity-rare: #22d3ee;
   --rarity-epic: #a78bfa;
   --rarity-legendary: #d4ff00;
+  --gain: var(--accent);          /* money: sold $, commission, quotes */
+  --status-band: var(--bg);       /* behind the iPhone status bar */
 }
+/* Market Open: light, indigo for the app, green for money. */
+html[data-theme="market"] {
+  --bg: #f3f5f9;
+  --card: #ffffff;
+  --card-active: #eef1f6;
+  --border: #e1e6ee;
+  --border-mid: #dde2ea;
+  --text: #101828;
+  --muted: #667085;
+  --muted-strong: #475467;
+  --accent: #444ce7;
+  --accent-dim: #3538cd;
+  --danger: #d92d20;
+  --rarity-common: #667085;
+  --rarity-uncommon: #079455;
+  --rarity-rare: #0e9384;
+  --rarity-epic: #7a5af8;
+  --rarity-legendary: #ca8a04;
+  --gain: #079455;
+  --status-band: #101828;
+}
+html[data-theme="market"] .header { background: linear-gradient(to bottom, var(--status-band) env(safe-area-inset-top), var(--bg) env(safe-area-inset-top)); }
+html[data-theme="market"] .card, html[data-theme="market"] .stat-btn, html[data-theme="market"] .lead-card { box-shadow: 0 1px 3px rgba(16,24,40,.06); }
+html[data-theme="market"] .secondary-btn.danger, html[data-theme="market"] .select-bar button.danger { border-color: #fda29b; color: #b42318; }
+html[data-theme="market"] .secondary-btn.danger:active { background: #fef3f2; }
+html[data-theme="market"] .field-copy-btn:active { background: #e4e7ec; }
+html[data-theme="market"] .field-copy-btn.copied { background: #dcfae6; color: #079455; }
+html[data-theme="market"] .badge-booked { background: #dcfae6; color: #067647; }
+html[data-theme="market"] .badge-warm { background: #fef0c7; color: #b54708; }
+html[data-theme="market"] .badge-quoted { background: #e0eaff; color: #3538cd; }
+html[data-theme="market"] .badge-followup { background: #ffead5; color: #c4320a; }
+html[data-theme="market"] .bp-warn { color: #b54708; border-color: #fedf89; background: #fffaeb; }
+html[data-theme="market"] .st-agent.offline, html[data-theme="market"] .st-reasons { color: #b54708; }
+html[data-theme="market"] .win-rarity.uncommon { background: #dcfae6; }
+html[data-theme="market"] .win-rarity.rare { background: #ccfbef; }
+html[data-theme="market"] .win-rarity.epic { background: #ebe9fe; }
+html[data-theme="market"] .reveal-rarity { color: #ffffff !important; }
+html[data-theme="market"] .hours-del { color: #b42318 !important; border-color: #fda29b !important; }
+.theme-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.theme-pick button { background: var(--card); border: 1px solid var(--border-mid); border-radius: 6px; padding: 10px; color: var(--text); cursor: pointer; text-align: left; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; font-weight: 500; }
+.theme-pick button.on { border-color: var(--accent); color: var(--accent); }
+.theme-pick .sw { display: flex; gap: 4px; margin-bottom: 6px; }
+.theme-pick .sw i { width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(128,128,128,.3); }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
   margin: 0;
@@ -68,6 +126,8 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 .content { flex: 1; padding: 16px 20px 20px; }
 .view { display: none; }
 .view.active { display: block; }
+.calls-btn { display: block; text-align: center; text-decoration: none; }
+.calls-btn[hidden] { display: none; }
 .training-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--border-mid); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
 .training-link b { display: block; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
 .training-link span span { display: block; font-size: 12px; color: var(--muted-strong); margin-top: 2px; }
@@ -121,7 +181,7 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
   font-size: 11px; color: var(--muted); margin-top: 4px;
   letter-spacing: 1px; text-transform: uppercase; font-weight: 500;
 }
-.stat-btn.sold .stat-value { color: var(--accent); }
+.stat-btn.sold .stat-value { color: var(--gain); }
 
 .big-btn {
   width: 100%; padding: 14px; border: none;
@@ -274,7 +334,7 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 .lead-body { flex: 1; min-width: 0; }
 .lead-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; gap: 8px; }
 .lead-name { font-weight: 500; font-size: 15px; color: var(--text); }
-.lead-quote { font-weight: 700; color: var(--accent); font-size: 14px; white-space: nowrap; }
+.lead-quote { font-weight: 700; color: var(--gain); font-size: 14px; white-space: nowrap; }
 .lead-address { font-size: 12px; color: var(--muted-strong); margin-bottom: 4px; }
 .lead-meta { display: flex; gap: 6px; align-items: center; font-size: 11px; }
 .lead-badge {
@@ -441,7 +501,7 @@ input[type="file"] { display: none; }
 }
 .cal-day .cal-day-num { font-size: 12px; font-weight: 500; line-height: 1; }
 .cal-day .cal-day-val {
-  font-size: 9px; color: var(--accent); margin-top: auto;
+  font-size: 9px; color: var(--gain); margin-top: auto;
   font-weight: 500; line-height: 1.1; white-space: nowrap;
 }
 .cal-day.other-month { opacity: 0.25; }
@@ -453,7 +513,7 @@ input[type="file"] { display: none; }
 
 .cal-total {
   text-align: center; padding: 12px 0 4px;
-  font-size: 13px; font-weight: 500; color: var(--accent);
+  font-size: 13px; font-weight: 500; color: var(--gain);
   letter-spacing: 1px; text-transform: uppercase;
 }
 .cal-total.zero { color: var(--muted); }
@@ -496,7 +556,7 @@ button.stat-mini:active { background: var(--card-active); }
 .commission-row:last-child { border-bottom: none; }
 .commission-label { color: var(--muted-strong); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
 .commission-value { font-weight: 500; font-size: 15px; color: var(--text); }
-.commission-total { color: var(--accent); font-size: 18px; font-weight: 700; }
+.commission-total { color: var(--gain); font-size: 18px; font-weight: 700; }
 
 /* Export box */
 .export-box {
@@ -523,7 +583,7 @@ button.stat-mini:active { background: var(--card-active); }
 .rewards-stat .val {
   color: var(--text); font-size: 20px; font-weight: 700; margin-top: 2px;
 }
-.rewards-stat.highlight .val { color: var(--accent); }
+.rewards-stat.highlight .val { color: var(--gain); }
 
 .tier-selector { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 10px; }
 .tier-btn {
@@ -665,6 +725,7 @@ button.stat-mini:active { background: var(--card-active); }
 
   <button class="big-btn" id="new-lead-btn">+ NEW LEAD</button>
   <button class="secondary-btn" id="status-btn">AGENT STATUS</button>
+  <a class="secondary-btn calls-btn" id="calls-btn" href="calls.html" hidden>CALL LIST</a>
 
   <div class="reset-row">
     <button class="reset-btn" id="undo-door">− DOORS</button>
@@ -851,12 +912,12 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="stat-mini"><div class="val" id="k-booked">0</div><div class="lbl">Sold</div><div class="pct" id="k-booked-pct">–</div></div>
   </div>
   <div class="mini-grid-2">
-    <div class="stat-mini"><div class="val" style="color:var(--accent);" id="k-value">$0</div><div class="lbl">Sold $</div></div>
-    <div class="stat-mini"><div class="val" style="color:var(--accent);" id="k-earned">$0</div><div class="lbl">Commission</div></div>
+    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-value">$0</div><div class="lbl">Sold $</div></div>
+    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
   <div class="mini-grid-2">
     <button class="stat-mini" id="edit-hours-btn"><div class="val" id="k-hours">0h</div><div class="lbl">Hours · tap to edit</div></button>
-    <div class="stat-mini"><div class="val" style="color:var(--accent);" id="k-rate">$0</div><div class="lbl">Per hour</div></div>
+    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-rate">$0</div><div class="lbl">Per hour</div></div>
   </div>
   <div id="funnel" style="margin-top:12px;"></div>
 
@@ -868,18 +929,24 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="stat-mini"><div class="val" id="m-booked">0</div><div class="lbl">Sold</div><div class="pct" id="m-booked-pct">–</div></div>
   </div>
   <div class="mini-grid-2">
-    <div class="stat-mini"><div class="val" style="color:var(--accent);" id="m-value">$0</div><div class="lbl">Sold $</div></div>
-    <div class="stat-mini"><div class="val" style="color:var(--accent);" id="m-earned">$0</div><div class="lbl">Commission</div></div>
+    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-value">$0</div><div class="lbl">Sold $</div></div>
+    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
   <div class="mini-grid-2">
     <div class="stat-mini"><div class="val" id="m-hours">0h</div><div class="lbl">Hours</div></div>
-    <div class="stat-mini"><div class="val" style="color:var(--accent);" id="m-rate">$0</div><div class="lbl">Per hour</div></div>
+    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-rate">$0</div><div class="lbl">Per hour</div></div>
   </div>
   <div id="funnel-month" style="margin-top:12px; margin-bottom: 20px;"></div>
 </div>
 
 <!-- SETTINGS -->
 <div class="view" id="view-settings">
+  <p class="section-title">Look</p>
+  <div class="theme-pick" id="theme-pick">
+    <button type="button" data-theme-pick="market"><span class="sw"><i style="background:#f3f5f9"></i><i style="background:#444ce7"></i><i style="background:#079455"></i></span>Market Open</button>
+    <button type="button" data-theme-pick="classic"><span class="sw"><i style="background:#141414"></i><i style="background:#262626"></i><i style="background:#d4ff00"></i></span>Classic</button>
+  </div>
+
   <p class="section-title">Monthly goal</p>
   <div class="form-group">
     <label>Target sold ($) per month</label>
@@ -954,7 +1021,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V22</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V23</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1241,15 +1308,15 @@ function renderGoalRing() {
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
   const paceStr = diff >= 0 ? `+$${diff.toLocaleString()} AHEAD` : `-$${Math.abs(diff).toLocaleString()} BEHIND`;
-  const paceColor = diff >= 0 ? 'var(--accent)' : 'var(--danger)';
+  const paceColor = diff >= 0 ? 'var(--gain)' : 'var(--danger)';
   const html = `
     <svg width="180" height="180" viewBox="0 0 180 180" style="overflow: visible;">
       <circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--border-mid)" stroke-width="12"/>
       <circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round"
               stroke-dasharray="${dash} ${circ}" transform="rotate(-90 90 90)"/>
-      <text x="90" y="82" text-anchor="middle" fill="#ffffff" font-size="32" font-weight="700" font-family="inherit">${pct}%</text>
-      <text x="90" y="102" text-anchor="middle" fill="#737373" font-size="11" font-family="inherit" letter-spacing="0.5">$${sold.toLocaleString()} / $${goal.toLocaleString()}</text>
-      <text x="90" y="118" text-anchor="middle" fill="${paceColor}" font-size="11" font-weight="500" font-family="inherit" letter-spacing="1">${paceStr}</text>
+      <text x="90" y="82" text-anchor="middle" style="fill:var(--text)" font-size="32" font-weight="700" font-family="inherit">${pct}%</text>
+      <text x="90" y="102" text-anchor="middle" style="fill:var(--muted)" font-size="11" font-family="inherit" letter-spacing="0.5">$${sold.toLocaleString()} / $${goal.toLocaleString()}</text>
+      <text x="90" y="118" text-anchor="middle" style="fill:${paceColor}" font-size="11" font-weight="500" font-family="inherit" letter-spacing="1">${paceStr}</text>
     </svg>
   `;
   document.getElementById('goal-ring-wrap').innerHTML = html;
@@ -1958,7 +2025,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V22';
+const APP_VERSION = 'V23';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2229,6 +2296,27 @@ function updateStatusButton() {
 }
 
 document.getElementById('status-btn').addEventListener('click', () => showView('status'));
+// Settings → Look: switches straight away and is remembered on this phone.
+function markThemePick() {
+  const t = document.documentElement.getAttribute('data-theme');
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('on', b.dataset.themePick === t));
+}
+document.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => {
+  const t = b.dataset.themePick;
+  try { localStorage.setItem('dript_theme', t); } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'market' ? '#ffffff' : '#141414');
+  markThemePick();
+  if (document.getElementById('view-home').classList.contains('active')) renderHome();
+}));
+markThemePick();
+// Managers only: shown once the manager code has been entered on the call list page (calls.html).
+try { document.getElementById('calls-btn').hidden = !localStorage.getItem('dript_calls_code'); } catch (e) {}
+// The way in the first time: tap the version line in Settings 5 times (the page asks for the code).
+(() => { let taps = 0, timer; document.getElementById('app-version').addEventListener('click', () => {
+  clearTimeout(timer); timer = setTimeout(() => taps = 0, 2000);
+  if (++taps >= 5) location.href = 'calls.html';
+}); })();
 document.getElementById('agent-status-link').addEventListener('click', () => showView('status'));
 document.getElementById('st-refresh').addEventListener('click', () => renderStatus(true));
 updateStatusButton();
@@ -2551,10 +2639,10 @@ function renderStatsOnly() {
 function renderFunnel(s, containerId) {
   const max = Math.max(s.doors, 1);
   const rows = [
-    { name: 'Doors', val: s.doors, color: '#d4ff00' },
-    { name: 'Convos', val: s.convos, color: '#a3cc00', dropFrom: s.doors, dropLabel: 'doors' },
-    { name: 'Quotes', val: s.quotes, color: '#737373', dropFrom: s.convos, dropLabel: 'convos' },
-    { name: 'Sold', val: s.booked, color: '#d4ff00', dropFrom: s.quotes, dropLabel: 'quotes' }
+    { name: 'Doors', val: s.doors, color: 'var(--accent)' },
+    { name: 'Convos', val: s.convos, color: 'var(--accent-dim)', dropFrom: s.doors, dropLabel: 'doors' },
+    { name: 'Quotes', val: s.quotes, color: 'var(--muted)', dropFrom: s.convos, dropLabel: 'convos' },
+    { name: 'Sold', val: s.booked, color: 'var(--gain)', dropFrom: s.quotes, dropLabel: 'quotes' }
   ];
   document.getElementById(containerId).innerHTML = rows.map(r => {
     const pct = Math.max((r.val / max) * 100, r.val > 0 ? 4 : 0);

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#141414">
+<meta name="robots" content="noindex, nofollow">
+<title>Dript Call List</title>
+<script>
+// Same colour theme as the rep app (Settings → Look): "market" (default) or "classic".
+(function () {
+  var t = 'market';
+  try { t = localStorage.getItem('dript_theme') || 'market'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+  if (t === 'market') {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff');
+    document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'default');
+  }
+})();
+</script>
+<!--
+  The call list: every lead Tom has handled, sorted by where it ended up, hottest first.
+  Two homes, one file:
+   - the review site on the office Mac (localhost:4800/calls): reads and saves through the agent
+   - GitHub Pages next to the rep app (calls.html): reads and saves through the Apps Script with the
+     manager code (CALLS_CODE), which reps don't have. The page itself holds no lead data.
+-->
+<style>
+:root {
+  --bg: #141414; --card: #1f1f1f; --card-2: #262626; --line: #333333; --text: #ffffff;
+  --muted: #8a8a8a; --muted-2: #b5b5b5; --accent: #d4ff00; --accent-ink: #141414;
+  --hot: #ff6b4a; --warm: #ffb547; --cold: #6cb6ff; --dnc: #8a8a8a; --good: #4ade80; --bad: #ef4444;
+  --gain: var(--text); --hero-bg: var(--card); --hero-line: var(--accent); --hero-ink: var(--accent);
+  --hot-soft: #3a1a12; --warm-soft: #33260f; --cold-soft: #12263a; --dnc-soft: #2a2a2a; --hover: #444;
+  --warn-bg: #2c2414; --warn-line: #5a4520; --shadow: none; --scheme: dark; --status-band: var(--bg);
+}
+/* Market Open: light, indigo for the page, green for money (with a + like a trading app). */
+html[data-theme="market"] {
+  --bg: #f3f5f9; --card: #ffffff; --card-2: #eef1f6; --line: #e1e6ee; --text: #101828;
+  --muted: #667085; --muted-2: #475467; --accent: #444ce7; --accent-ink: #ffffff;
+  --hot: #e04f3d; --warm: #dc6803; --cold: #2e90fa; --dnc: #98a2b3; --good: #079455; --bad: #d92d20;
+  --gain: #079455; --hero-bg: #eef0ff; --hero-line: #a4abfc; --hero-ink: #079455;
+  --hot-soft: #fee9e6; --warm-soft: #fef0c7; --cold-soft: #e0f2fe; --dnc-soft: #f2f4f7; --hover: #c7cdd8;
+  --warn-bg: #fffaeb; --warn-line: #fedf89; --shadow: 0 1px 3px rgba(16,24,40,.06); --scheme: light; --status-band: #101828;
+}
+html[data-theme="market"] .gain::before { content: "+"; }
+html[data-theme="market"] .top { background: linear-gradient(to bottom, var(--status-band) env(safe-area-inset-top), var(--bg) env(safe-area-inset-top)); }
+html[data-theme="market"] .top h1 small { color: var(--muted); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; padding-bottom: env(safe-area-inset-bottom); }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); }
+.app { max-width: 1100px; margin: 0 auto; padding: 0 16px 40px; }
+.top { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); margin: 0 -16px; padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; display: flex; align-items: center; gap: 10px; }
+.top h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); flex: 1; }
+.top h1 small { display: block; color: var(--muted); font-size: 11px; letter-spacing: 1px; font-weight: 500; }
+.top a, .top button { background: var(--card-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-2); text-decoration: none; cursor: pointer; white-space: nowrap; }
+.note { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warm); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 12px; }
+
+/* Money */
+.money { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 14px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+.tile b { display: block; font-size: 24px; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--gain); }
+.tile b.plain { color: var(--text); }
+.tile span { color: var(--muted); font-size: 12px; }
+.tile.accent { border-color: var(--hero-line); background: var(--hero-bg); }
+.tile.accent b { color: var(--hero-ink); }
+.rate { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.rate input[type=range] { flex: 1; accent-color: var(--accent); }
+.rate output { min-width: 44px; text-align: right; font-weight: 600; color: var(--hero-ink); font-variant-numeric: tabular-nums; }
+
+/* Buckets & filters */
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 14px 0 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 7px 12px; font-size: 13px; color: var(--muted-2); cursor: pointer; white-space: nowrap; }
+.chip b { color: var(--text); font-weight: 600; margin-left: 4px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip.on b { color: var(--accent-ink); }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.filters label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+.filters input, .filters select { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; }
+.filters .search { grid-column: 1 / -1; }
+.toggle-filters { background: none; border: 0; color: var(--muted-2); font-size: 13px; padding: 8px 0 0; cursor: pointer; }
+.summary { color: var(--muted); font-size: 13px; margin: 12px 0 6px; }
+
+/* Lead rows */
+.row { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--shadow); }
+.row:hover { border-color: var(--hover); }
+.row.due { border-left: 3px solid var(--accent); }
+.score { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 15px; background: var(--card-2); border: 2px solid var(--line); font-variant-numeric: tabular-nums; }
+.score.s-hi { border-color: var(--hot); color: var(--hot); }
+.score.s-mid { border-color: var(--warm); color: var(--warm); }
+.score.s-lo { border-color: var(--cold); color: var(--cold); }
+.row .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .why { color: var(--muted-2); font-size: 13px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--gain); }
+.row .val small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+.tag { font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: var(--card-2); color: var(--muted-2); white-space: nowrap; }
+.tag.hot { background: var(--hot-soft); color: var(--hot); } .tag.warm { background: var(--warm-soft); color: var(--warm); }
+.tag.cold { background: var(--cold-soft); color: var(--cold); } .tag.dnc { background: var(--dnc-soft); color: var(--dnc); }
+.tag.due { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.tag.cat { background: transparent; border: 1px solid var(--line); }
+.empty { text-align: center; color: var(--muted); padding: 40px 10px; border: 1px dashed var(--line); border-radius: 10px; }
+.more { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; color: var(--muted-2); cursor: pointer; }
+
+/* Detail sheet */
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 20; display: none; }
+.sheet { position: fixed; z-index: 21; inset: auto 0 0 0; max-height: 92vh; overflow-y: auto; background: var(--bg); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 0 16px calc(env(safe-area-inset-bottom) + 20px); display: none; max-width: 720px; margin: 0 auto; }
+@media (min-width: 900px) { .sheet { inset: 0 0 0 auto; width: 560px; max-height: none; border-radius: 0; border-top: 0; border-left: 1px solid var(--line); margin: 0; } }
+.open .sheet, .open .sheet-bg { display: block; }
+.sheet-head { position: sticky; top: 0; background: var(--bg); padding: 14px 0 10px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--line); z-index: 1; }
+.sheet-head h2 { margin: 0; font-size: 19px; flex: 1; }
+.sheet-head h2 small { display: block; font-size: 13px; color: var(--muted-2); font-weight: 400; margin-top: 2px; }
+.x { background: var(--card-2); border: 1px solid var(--line); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; color: var(--muted-2); }
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 6px; }
+.actions a { display: block; text-align: center; text-decoration: none; background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 11px 6px; color: var(--text); font-weight: 600; font-size: 14px; }
+.actions a.call { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.actions a.off { opacity: .35; pointer-events: none; }
+.sec { margin-top: 18px; }
+.sec h3 { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin: 0 0 8px; font-weight: 600; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; word-break: break-word; }
+.items { font-size: 14px; }
+.items div { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.items div:last-child { border-bottom: 0; }
+.items small { color: var(--muted); }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { flex: 1; min-width: 64px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px 6px; cursor: pointer; font-size: 13.5px; }
+.seg button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.seg button.t-hot.on { border-color: var(--hot); color: var(--hot); } .seg button.t-warm.on { border-color: var(--warm); color: var(--warm); }
+.seg button.t-cold.on { border-color: var(--cold); color: var(--cold); } .seg button.t-dnc.on { border-color: var(--dnc); color: var(--muted-2); }
+.outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.outcomes button { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px 8px; cursor: pointer; font-size: 13px; text-align: left; }
+.outcomes button.on { border-color: var(--accent); color: var(--accent); }
+textarea, .field { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+textarea { min-height: 76px; resize: vertical; }
+.when { display: flex; gap: 6px; }
+.when input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px; color-scheme: var(--scheme); }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.quick button { background: var(--card-2); border: 1px solid var(--line); border-radius: 14px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; color: var(--muted-2); }
+.save { width: 100%; margin-top: 18px; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 9px; padding: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+.save:disabled { opacity: .5; }
+.log div { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.log b { font-weight: 600; }
+.log small { color: var(--muted); display: block; }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%); background: var(--card-2); border: 1px solid var(--line); color: var(--text); padding: 10px 16px; border-radius: 20px; font-size: 14px; z-index: 30; display: none; }
+
+/* Gate */
+.gate { max-width: 360px; margin: 18vh auto 0; text-align: center; }
+.gate input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 14px 0 10px; text-align: center; }
+.gate p { color: var(--muted-2); }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="detail"><div class="sheet-bg" id="sheet-bg"></div><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// The same Apps Script web app the rep app sends to.
+const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
+const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const STORE = { code: 'dript_calls_code', data: 'dript_calls_data', outbox: 'dript_calls_outbox', view: 'dript_calls_view' };
+
+const CATS = [
+  ['no-followup', 'Quoted, no follow-up'], ['not-ready', 'Not ready yet'], ['cancelled', 'Booked, then cancelled or moved'],
+  ['never-quoted', 'Enquired, never quoted'], ['lost', 'Lost'], ['upcoming', 'Booked, coming up'], ['done', 'Job done'],
+];
+const OPEN = new Set(['no-followup', 'not-ready', 'cancelled', 'never-quoted', 'lost']);
+const CAT_LABEL = Object.fromEntries(CATS);
+const OUTCOMES = [
+  ['no-answer', 'No answer / left message'], ['spoke', 'Spoke, still thinking'], ['quoted', 'Sent / re-sent the quote'],
+  ['not-ready', 'Not ready yet, call later'], ['booked', 'Booked it'], ['not-interested', 'Not interested'],
+  ['dnc', 'Do not contact'], ['note', 'Note only'],
+];
+const OUTCOME_LABEL = Object.fromEntries(OUTCOMES);
+
+const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const money = n => n ? '$' + Math.round(n).toLocaleString('en-AU') : '—';
+const todayKey = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' });
+const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+const fmt = d => d ? new Date(d.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }) : '';
+const fmtDT = s => { if (!s) return ''; const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + '+10:00'); return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }); };
+const ago = d => { if (!d) return ''; const n = Math.round((Date.parse(todayKey()) - Date.parse(d.slice(0, 10))) / 86400000); return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n < 60 ? n + 'd ago' : n < 730 ? Math.round(n / 30) + 'mo ago' : Math.round(n / 365) + 'y ago'; };
+const tempOf = l => l.temp || l.autoTemp;
+const commission = (inc, pct) => inc / 1.1 * pct / 100;
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2600); }
+
+// --- State -----------------------------------------------------------------------------------
+let data = load(STORE.data, null);
+let outbox = load(STORE.outbox, []);
+const view = Object.assign({ bucket: 'list', q: '', temp: '', from: '', to: '', min: '', max: '', sort: 'score', filters: false }, load(STORE.view, {}));
+let shown = 60;
+let openKey = null;
+
+// --- Talking to the agent (Mac) or the Apps Script (phone) -------------------------------------
+async function script(body) {
+  const res = await fetch(AGENT_URL, { method: 'POST', body: JSON.stringify(Object.assign({ code: load(STORE.code, '') }, body)) });
+  const out = await res.json();
+  if (!out.ok) throw new Error(out.error || 'Rejected');
+  return out;
+}
+
+async function fetchData() {
+  if (LOCAL) {
+    const res = await fetch('/calls/data');
+    if (!res.ok) throw new Error('The agent didn’t answer');
+    return { data: await res.json(), pending: [] };
+  }
+  const out = await script({ action: 'callList' });
+  return { data: out.data, pending: out.pending || [] };
+}
+
+async function refresh(quiet) {
+  if (!LOCAL && !load(STORE.code, '')) return render();
+  if (!quiet) toast('Loading…');
+  try {
+    const r = await fetchData();
+    if (!r.data) throw new Error('No call list yet: the office computer hasn’t sent one');
+    data = r.data;
+    // Edits not yet collected by the office computer: show them on top.
+    const pending = r.pending.concat(outbox);
+    const seen = new Set();
+    pending.forEach(e => { if (!seen.has(e.id)) { seen.add(e.id); applyLocal(e); } });
+    save(STORE.data, data);
+    await flush();
+    if (!quiet) toast('Up to date');
+  } catch (err) {
+    if (/code/i.test(String(err))) { localStorage.removeItem(STORE.code); toast('Wrong manager code'); }
+    else toast(data ? 'Offline: showing the last saved list' : String(err.message || err));
+  }
+  render();
+}
+
+async function send(edit) {
+  edit.id = edit.id || ('e' + Date.now() + Math.random().toString(36).slice(2, 7));
+  edit.at = edit.at || new Date().toISOString();
+  if (LOCAL) {
+    const url = edit.rate != null ? '/calls/rate' : '/calls/update';
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edit) });
+    if (!res.ok) throw new Error('Not saved: ' + (await res.text()));
+    const out = await res.json();
+    if (out.lead) replaceLead(out.lead); else applyLocal(edit);
+    return;
+  }
+  applyLocal(edit);
+  outbox.push(edit);
+  save(STORE.outbox, outbox);
+  save(STORE.data, data);
+  await flush();
+}
+
+async function flush() {
+  if (LOCAL || !outbox.length) return;
+  const left = [];
+  for (const e of outbox) {
+    try { await script({ action: 'callUpdate', edit: e }); } catch (err) { left.push(e); }
+  }
+  outbox = left;
+  save(STORE.outbox, outbox);
+  if (left.length) toast(left.length + ' change' + (left.length === 1 ? '' : 's') + ' saved on this phone, will send when online');
+}
+
+function replaceLead(lead) {
+  const i = data.leads.findIndex(l => l.key === lead.key);
+  if (i >= 0) data.leads[i] = lead; else data.leads.push(lead);
+  data.totals = totals(data.leads);
+}
+
+// The same rules as updateCall() in the agent (calls.ts), so the phone shows a change straight away.
+function applyLocal(e) {
+  if (e.rate != null) { data.rate = Number(e.rate); return; }
+  const l = data.leads.find(x => x.key === e.key);
+  if (!l) return;
+  const today = todayKey();
+  if (e.temp !== undefined) l.temp = e.temp || null;
+  if (e.nextCall !== undefined) l.nextCall = e.nextCall || null;
+  if (e.nextTime !== undefined) l.nextTime = e.nextTime || null;
+  if (e.category !== undefined) { if (e.category) { l.category = e.category; l.manualCategory = true; } else { l.category = l.autoCategory; l.manualCategory = false; } }
+  if (e.outcome === 'not-ready') l.category = 'not-ready';
+  if (e.outcome === 'not-interested') l.category = 'lost';
+  if (e.outcome === 'dnc') { l.temp = 'dnc'; l.nextCall = null; l.nextTime = null; }
+  if (e.outcome === 'booked') { l.category = 'upcoming'; l.nextCall = null; l.nextTime = null; }
+  if (e.outcome === 'no-answer' && e.nextCall === undefined && (!l.nextCall || l.nextCall <= today)) l.nextCall = addDays(today, 2);
+  else if (e.outcome && e.outcome !== 'note' && e.nextCall === undefined && l.nextCall && l.nextCall <= today) l.nextCall = null;
+  if (e.outcome || (e.note || '').trim()) {
+    const entry = { at: e.at, outcome: e.outcome || '', note: (e.note || '').trim(), by: 'Tim' };
+    l.log = [entry].concat(l.log || []);
+    if (entry.outcome && entry.outcome !== 'note') l.lastCall = entry;
+    if (e.at.slice(0, 10) > l.lastTouch) l.lastTouch = e.at.slice(0, 10);
+  }
+  l.due = !!l.nextCall && l.nextCall <= today;
+  l.score = score(l, today);
+  l.onList = (OPEN.has(l.category) || l.repeatDue) && tempOf(l) !== 'dnc' && (!l.nextCall || l.nextCall <= today);
+  data.totals = totals(data.leads);
+}
+
+// Port of score() in calls.ts.
+function score(l, today) {
+  const t = tempOf(l);
+  if (t === 'dnc') return 0;
+  if ((l.category === 'done' && !l.repeatDue) || l.category === 'upcoming') return 0;
+  let s = t === 'hot' ? 45 : t === 'warm' ? 30 : t === 'cold' ? 10 : 20;
+  s += ({ cancelled: 18, 'not-ready': 14, 'no-followup': 14, 'never-quoted': 8, lost: 2, done: 10, upcoming: 0 })[l.category];
+  const age = (Date.parse(today) - Date.parse(l.lastTouch)) / 86400000;
+  s += age <= 14 ? 20 : age <= 45 ? 15 : age <= 120 ? 9 : age <= 365 ? 4 : 0;
+  s += Math.min(12, (l.value || 0) / 150);
+  if (l.due) s += 5;
+  return Math.max(1, Math.min(99, Math.round(s)));
+}
+
+function totals(list) {
+  const open = list.filter(l => OPEN.has(l.category) && tempOf(l) !== 'dnc');
+  const known = open.filter(l => l.value > 0);
+  const prices = list.filter(l => l.value > 0).map(l => l.value).sort((a, b) => a - b);
+  const median = prices.length ? prices[Math.floor(prices.length / 2)] : 0;
+  const sum = (arr) => arr.reduce((t, l) => t + (l.value || 0), 0);
+  return {
+    open: open.length, openKnown: known.length, knownValue: sum(known), estValue: (open.length - known.length) * median, median,
+    upcoming: list.filter(l => l.category === 'upcoming').length, upcomingValue: sum(list.filter(l => l.category === 'upcoming')),
+    done: list.filter(l => l.category === 'done').length, doneValue: sum(list.filter(l => l.category === 'done')),
+  };
+}
+
+// --- Filtering -----------------------------------------------------------------------------------
+const BUCKETS = () => [
+  ['list', 'Call list', l => l.onList],
+  ['due', 'Callbacks due', l => l.due && tempOf(l) !== 'dnc'],
+  ['later', 'Postponed', l => l.nextCall && l.nextCall > todayKey() && tempOf(l) !== 'dnc'],
+  ...CATS.map(([k, label]) => [k, label, l => l.category === k]),
+  ['repeat', 'Repeat clean due', l => l.repeatDue && tempOf(l) !== 'dnc'],
+  ['dnc', 'Do not contact', l => tempOf(l) === 'dnc'],
+  ['all', 'All', () => true],
+];
+
+function filtered() {
+  const b = BUCKETS().find(x => x[0] === view.bucket) || BUCKETS()[0];
+  const q = view.q.trim().toLowerCase();
+  const min = Number(view.min) || 0, max = Number(view.max) || Infinity;
+  let list = data.leads.filter(b[2]).filter(l => {
+    if (q && ![l.name, l.phone, l.email, l.address, l.why, (l.services || []).join(' '), (l.log || []).map(e => e.note).join(' ')].join(' ').toLowerCase().includes(q)) return false;
+    if (view.temp && (view.temp === 'none' ? tempOf(l) : tempOf(l) !== view.temp)) return false;
+    if (view.from && l.enquired < view.from) return false;
+    if (view.to && l.enquired > view.to) return false;
+    if ((view.min || view.max) && !((l.value || 0) >= min && (l.value || 0) <= max)) return false;
+    return true;
+  });
+  const by = {
+    score: (a, b) => b.score - a.score || (b.value || 0) - (a.value || 0),
+    value: (a, b) => (b.value || 0) - (a.value || 0),
+    newest: (a, b) => b.enquired.localeCompare(a.enquired),
+    oldest: (a, b) => a.enquired.localeCompare(b.enquired),
+    touched: (a, b) => b.lastTouch.localeCompare(a.lastTouch),
+    next: (a, b) => (a.nextCall || '9999').localeCompare(b.nextCall || '9999'),
+  }[view.sort] || ((a, b) => b.score - a.score);
+  return list.sort(by);
+}
+
+// --- Rendering ---------------------------------------------------------------------------------
+function render() {
+  const app = document.getElementById('app');
+  if (!LOCAL && !load(STORE.code, '')) return renderGate(app);
+  const back = LOCAL ? '<a href="/">‹ Review</a>' : '<a href="./">‹ App</a>';
+  if (!data) { app.innerHTML = `<div class="top">${back}<h1>Call list</h1></div><div class="empty" style="margin-top:20px">Loading…</div>`; return; }
+  const t = data.totals;
+  const rate = data.rate || 7;
+  const potential = t.knownValue + t.estValue;
+  const list = filtered();
+  const counts = BUCKETS().map(([k, label, fn]) => [k, label, data.leads.filter(fn).length]);
+  const stale = Date.now() - Date.parse(data.generatedAt) > 6 * 3600000;
+  app.innerHTML = `
+    <div class="top">${back}<h1>Call list<small>${esc(data.owner)}’s leads · ${data.leads.length}</small></h1><button id="reload">↻</button></div>
+    ${stale ? `<div class="warn">This list is from ${fmtDT(data.generatedAt)}. The office computer updates it every 2 hours while it’s on.</div>` : ''}
+    <div class="money">
+      <div class="tile"><b class="gain">${money(potential)}</b><span>Potential revenue in ${t.open} open leads<br>${money(t.knownValue)} quoted${t.estValue ? ` + ${money(t.estValue)} est. for ${t.open - t.openKnown} with no price (median ${money(t.median)})` : ''}</span></div>
+      <div class="tile accent"><b id="comm" class="gain">${money(commission(potential, rate))}</b><span>Potential commission at <span id="rate-label">${rate}</span>% (ex GST)</span>
+        <div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div></div>
+      <div class="tile"><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} booked, coming up · <span id="comm-up">${money(commission(t.upcomingValue, rate))}</span></span></div>
+      <div class="tile"><b class="plain">${money(t.doneValue)}</b><span>${t.done} jobs done from these leads</span></div>
+    </div>
+    <div class="chips">${counts.map(([k, label, n]) => `<button class="chip ${view.bucket === k ? 'on' : ''}" data-bucket="${k}">${esc(label)}<b>${n}</b></button>`).join('')}</div>
+    <button class="toggle-filters" id="toggle-filters">${view.filters ? '▾ Hide filters' : '▸ Filter & sort'}${activeFilters() ? ` · ${activeFilters()} on` : ''}</button>
+    ${view.filters ? filtersHTML() : ''}
+    <div class="summary">${list.length} lead${list.length === 1 ? '' : 's'} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))} quoted${view.bucket === 'list' ? ' · open leads not postponed, hottest first' : ''}</div>
+    <div id="rows">${list.length ? list.slice(0, shown).map(rowHTML).join('') : '<div class="empty">Nothing here</div>'}</div>
+    ${list.length > shown ? `<button class="more" id="more">Show more (${list.length - shown} left)</button>` : ''}
+    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Potential = open leads (not booked, done or do-not-contact). Commission = revenue ÷ 1.1 × rate.</p>`;
+  bind();
+}
+
+function activeFilters() { return ['q', 'temp', 'from', 'to', 'min', 'max'].filter(k => view[k]).length; }
+
+function filtersHTML() {
+  const opt = (v, label, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${label}</option>`;
+  return `<div class="filters">
+    <div class="search"><label>Search</label><input id="f-q" type="search" placeholder="Name, phone, street, note…" value="${esc(view.q)}"></div>
+    <div><label>Temperature</label><select id="f-temp">${opt('', 'Any', view.temp)}${opt('hot', 'Hot', view.temp)}${opt('warm', 'Warm', view.temp)}${opt('cold', 'Cold', view.temp)}${opt('none', 'Not set', view.temp)}${opt('dnc', 'Do not contact', view.temp)}</select></div>
+    <div><label>Sort</label><select id="f-sort">${opt('score', 'Propensity (hottest first)', view.sort)}${opt('value', 'Quote price (highest)', view.sort)}${opt('next', 'Next call date', view.sort)}${opt('touched', 'Last contact (newest)', view.sort)}${opt('newest', 'Enquired (newest)', view.sort)}${opt('oldest', 'Enquired (oldest)', view.sort)}</select></div>
+    <div><label>Enquired from</label><input id="f-from" type="date" value="${esc(view.from)}"></div>
+    <div><label>Enquired to</label><input id="f-to" type="date" value="${esc(view.to)}"></div>
+    <div><label>Price from $</label><input id="f-min" type="number" inputmode="numeric" value="${esc(view.min)}"></div>
+    <div><label>Price to $</label><input id="f-max" type="number" inputmode="numeric" value="${esc(view.max)}"></div>
+    <div><label>&nbsp;</label><button class="more" id="f-clear">Clear filters</button></div>
+  </div>`;
+}
+
+function scoreClass(s) { return s >= 60 ? 's-hi' : s >= 40 ? 's-mid' : 's-lo'; }
+
+function rowHTML(l) {
+  const t = tempOf(l);
+  const next = l.nextCall ? (l.nextCall <= todayKey() ? '<span class="tag due">Call today</span>' : `<span class="tag">Call ${fmt(l.nextCall)}${l.nextTime ? ' ' + l.nextTime : ''}</span>`) : '';
+  return `<div class="row ${l.due ? 'due' : ''}" data-key="${esc(l.key)}">
+    <div class="score ${scoreClass(l.score)}">${l.score || '–'}</div>
+    <div style="min-width:0"><div class="name">${esc(l.name)}</div><div class="why">${esc(l.why)}</div>
+      <div class="meta">${t ? `<span class="tag ${t}">${t === 'dnc' ? 'Do not contact' : t}${l.temp ? '' : ' (GHL)'}</span>` : ''}${next}
+        <span class="tag cat">${esc(CAT_LABEL[l.category])}</span>${l.repeatDue ? '<span class="tag">Repeat due</span>' : ''}
+        ${l.lastCall ? `<span class="tag">Called ${ago(l.lastCall.at)}</span>` : ''}</div></div>
+    <div class="val"><span class="${l.value ? 'gain' : ''}">${money(l.value)}</span><small>${ago(l.enquired)}</small></div>
+  </div>`;
+}
+
+function bind() {
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+  on('reload', 'click', () => LOCAL ? localRefresh() : refresh(false));
+  document.querySelectorAll('[data-bucket]').forEach(b => b.addEventListener('click', () => { view.bucket = b.dataset.bucket; shown = 60; save(STORE.view, view); render(); }));
+  document.querySelectorAll('.row').forEach(r => r.addEventListener('click', () => openLead(r.dataset.key)));
+  on('more', 'click', () => { shown += 100; render(); });
+  on('toggle-filters', 'click', () => { view.filters = !view.filters; save(STORE.view, view); render(); });
+  const f = (id, key, ev) => on(id, ev || 'change', e => { view[key] = e.target.value; shown = 60; save(STORE.view, view); render(); if (id === 'f-q') { const q = document.getElementById('f-q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); } });
+  f('f-q', 'q', 'input'); f('f-temp', 'temp'); f('f-sort', 'sort'); f('f-from', 'from'); f('f-to', 'to'); f('f-min', 'min'); f('f-max', 'max');
+  on('f-clear', 'click', () => { Object.assign(view, { q: '', temp: '', from: '', to: '', min: '', max: '' }); save(STORE.view, view); render(); });
+  const rate = document.getElementById('rate');
+  if (rate) {
+    rate.addEventListener('input', () => {
+      const pct = Number(rate.value), t = data.totals;
+      document.getElementById('rate-out').textContent = pct + '%';
+      document.getElementById('rate-label').textContent = pct;
+      document.getElementById('comm').textContent = money(commission(t.knownValue + t.estValue, pct));
+      document.getElementById('comm-up').textContent = money(commission(t.upcomingValue, pct));
+    });
+    rate.addEventListener('change', () => { data.rate = Number(rate.value); send({ rate: data.rate }).catch(err => toast(String(err.message || err))); });
+  }
+}
+
+async function localRefresh() {
+  toast('Checking GHL and ServiceM8… (about a minute)');
+  try {
+    const res = await fetch('/calls/refresh', { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+  } catch (err) { toast('Refresh failed: ' + (err.message || err)); }
+  await refresh(true);
+  toast('Up to date');
+}
+
+function renderGate(app) {
+  app.innerHTML = `<div class="gate"><h1 style="color:var(--accent);letter-spacing:2px;font-size:16px">CALL LIST</h1>
+    <p>Enter the manager code to open the call list.</p>
+    <input type="password" id="code" autocomplete="off" autocapitalize="none" placeholder="Manager code">
+    <button class="save" id="go">Open</button><p class="note"><a href="./">‹ Back to the app</a></p></div>`;
+  document.getElementById('go').addEventListener('click', () => { save(STORE.code, document.getElementById('code').value.trim()); refresh(false); });
+}
+
+// --- Lead detail -------------------------------------------------------------------------------
+let draft = {};
+
+function openLead(key) {
+  openKey = key;
+  draft = {};
+  renderSheet();
+  document.getElementById('detail').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLead() {
+  openKey = null;
+  document.getElementById('detail').classList.remove('open');
+  document.body.style.overflow = '';
+  render();
+}
+
+function renderSheet() {
+  const l = data.leads.find(x => x.key === openKey);
+  if (!l) return closeLead();
+  const tel = (l.phone || '').replace(/[^\d+]/g, '');
+  const temp = draft.temp !== undefined ? draft.temp : l.temp;
+  const next = draft.nextCall !== undefined ? draft.nextCall : (l.nextCall || '');
+  const time = draft.nextTime !== undefined ? draft.nextTime : (l.nextTime || '');
+  const cat = draft.category !== undefined ? draft.category : (l.manualCategory ? l.category : '');
+  const today = todayKey();
+  const quick = [['Tomorrow', 1], ['2 days', 2], ['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['3 months', 91], ['6 months', 182]];
+  const tempBtn = (v, label) => `<button class="t-${v || 'none'} ${temp === v || (!temp && !v) ? 'on' : ''}" data-temp="${v}">${label}</button>`;
+  document.getElementById('sheet').innerHTML = `
+    <div class="sheet-head"><h2>${esc(l.name)}<small>${esc(CAT_LABEL[l.category])}${l.manualCategory ? ' (set by you)' : ''} · score ${l.score}</small></h2><button class="x" id="x">✕</button></div>
+    <div class="actions">
+      <a class="call ${tel ? '' : 'off'}" href="tel:${esc(tel)}">Call</a>
+      <a class="${tel ? '' : 'off'}" href="sms:${esc(tel)}">Text</a>
+      <a class="${l.email ? '' : 'off'}" href="mailto:${esc(l.email)}">Email</a>
+    </div>
+    <div class="sec"><h3>Where it’s at</h3><div style="font-size:14.5px">${esc(l.why)}</div>${l.stage ? `<p class="note">GHL stage: ${esc(l.stage)}</p>` : ''}</div>
+    <div class="sec"><h3>Details</h3><dl class="kv">
+      <dt>Phone</dt><dd>${esc(l.phone) || '—'}</dd>
+      <dt>Email</dt><dd>${esc(l.email) || '—'}</dd>
+      <dt>Address</dt><dd>${l.address ? `<a href="https://maps.apple.com/?q=${encodeURIComponent(l.address)}" target="_blank">${esc(l.address)}</a>` : '—'}</dd>
+      <dt>Quote</dt><dd>${money(l.value)}${l.valueFrom ? ` <span class="tag">${esc(l.valueFrom)}</span>` : ''}</dd>
+      <dt>Services</dt><dd>${esc((l.services || []).join(', ')) || '—'}</dd>
+      <dt>Enquired</dt><dd>${fmt(l.enquired)} (${ago(l.enquired)})${l.source ? ' · ' + esc(l.source) : ''}</dd>
+      ${l.quotedOn ? `<dt>Quoted</dt><dd>${fmt(l.quotedOn)}</dd>` : ''}
+      ${l.existingClient ? '<dt>Client</dt><dd>Existing client</dd>' : ''}
+      ${(l.tags || []).length ? `<dt>GHL tags</dt><dd>${(l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</dd>` : ''}
+    </dl></div>
+    ${(l.jobs || []).length ? `<div class="sec"><h3>ServiceM8 jobs</h3><div class="items">${l.jobs.map(j => `<div>#${esc(j.number)} · ${esc(j.status)}${j.total ? ' · ' + money(j.total) : ''}<br><small>Made ${fmt(j.date)}${j.completed ? ' · done ' + fmt(j.completed) : ''}${j.nextVisit ? ' · visit ' + fmtDT(j.nextVisit) : j.lastVisit ? ' · last visit ' + fmtDT(j.lastVisit) : ''}${j.quoteSent ? ' · quote sent' : ''}</small></div>`).join('')}</div></div>` : ''}
+    ${(l.appts || []).length ? `<div class="sec"><h3>Calendar</h3><div class="items">${l.appts.map(a => `<div>${fmtDT(a.start)} · ${esc(a.calendar)}${/cancel/i.test(a.status) ? ' · <b>cancelled</b>' : ''}<br><small>${esc(a.title)}${a.moved ? ' · changed after booking' : ''}</small></div>`).join('')}</div></div>` : ''}
+
+    <div class="sec"><h3>Log a call</h3><div class="outcomes">${OUTCOMES.map(([k, label]) => `<button data-outcome="${k}" class="${draft.outcome === k ? 'on' : ''}">${esc(label)}</button>`).join('')}</div>
+      <textarea id="note" placeholder="What was said, details to remember…" style="margin-top:8px">${esc(draft.note || '')}</textarea></div>
+    <div class="sec"><h3>Next call</h3>
+      <div class="when"><input type="date" id="next" value="${esc(next)}" min="${today}"><input type="time" id="time" value="${esc(time)}" style="max-width:130px"></div>
+      <div class="quick">${quick.map(([label, n]) => `<button data-days="${n}">${label}</button>`).join('')}<button data-days="">Clear</button></div>
+      <p class="note">A date puts it in that morning’s calendar reminder. Add a time to get its own calendar alert.</p></div>
+    <div class="sec"><h3>Temperature</h3><div class="seg">${tempBtn('hot', 'Hot')}${tempBtn('warm', 'Warm')}${tempBtn('cold', 'Cold')}${tempBtn('dnc', 'Do not contact')}${tempBtn('', 'Not set')}</div>
+      ${l.autoTemp && !l.temp ? `<p class="note">GHL lead score says ${esc(l.autoTemp)}.</p>` : ''}</div>
+    <div class="sec"><h3>Bucket</h3><select class="field" id="cat"><option value="">Automatic (${esc(CAT_LABEL[l.autoCategory])})</option>${CATS.map(([k, label]) => `<option value="${k}" ${cat === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div>
+    <button class="save" id="save">Save</button>
+    ${(l.log || []).length ? `<div class="sec"><h3>History</h3><div class="log">${l.log.map(e => `<div><b>${esc(OUTCOME_LABEL[e.outcome] || (e.outcome ? e.outcome : 'Note'))}</b>${e.note ? ': ' + esc(e.note) : ''}<small>${fmtDT(e.at)}${e.by ? ' · ' + esc(e.by) : ''}</small></div>`).join('')}</div></div>` : ''}
+  `;
+  const sheet = document.getElementById('sheet');
+  document.getElementById('x').addEventListener('click', closeLead);
+  sheet.querySelectorAll('[data-outcome]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.outcome = draft.outcome === b.dataset.outcome ? undefined : b.dataset.outcome; renderSheet(); }));
+  sheet.querySelectorAll('[data-temp]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.temp = b.dataset.temp; renderSheet(); }));
+  sheet.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.nextCall = b.dataset.days ? addDays(today, Number(b.dataset.days)) : ''; if (!b.dataset.days) draft.nextTime = ''; renderSheet(); }));
+  document.getElementById('next').addEventListener('change', e => { keepNote(); draft.nextCall = e.target.value; });
+  document.getElementById('time').addEventListener('change', e => { keepNote(); draft.nextTime = e.target.value; });
+  document.getElementById('cat').addEventListener('change', e => { keepNote(); draft.category = e.target.value; });
+  document.getElementById('save').addEventListener('click', () => saveLead(l));
+}
+
+function keepNote() { const n = document.getElementById('note'); if (n) draft.note = n.value; }
+
+async function saveLead(l) {
+  keepNote();
+  const edit = { key: l.key };
+  if (draft.outcome) edit.outcome = draft.outcome;
+  if ((draft.note || '').trim()) edit.note = draft.note.trim();
+  if (draft.temp !== undefined && draft.temp !== (l.temp || '')) edit.temp = draft.temp;
+  if (draft.nextCall !== undefined && draft.nextCall !== (l.nextCall || '')) edit.nextCall = draft.nextCall;
+  if (draft.nextTime !== undefined && draft.nextTime !== (l.nextTime || '')) edit.nextTime = draft.nextTime;
+  if (draft.category !== undefined && draft.category !== (l.manualCategory ? l.category : '')) edit.category = draft.category;
+  if (Object.keys(edit).length === 1) return toast('Nothing changed');
+  const btn = document.getElementById('save');
+  btn.disabled = true;
+  try {
+    await send(edit);
+    toast('Saved');
+    closeLead();
+  } catch (err) {
+    btn.disabled = false;
+    toast(String(err.message || err));
+  }
+}
+
+document.getElementById('sheet-bg').addEventListener('click', closeLead);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && openKey) closeLead(); });
+window.addEventListener('online', () => flush().then(render));
+render();
+refresh(!!data);
+</script>
+</body>
+</html>

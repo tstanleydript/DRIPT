@@ -5,13 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#141414">
 <title>Dript Training</title>
+<script>
+// Same colour theme as the rep app (Settings → Look): "market" (default) or "classic".
+(function () {
+  var t = 'market';
+  try { t = localStorage.getItem('dript_theme') || 'market'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+  if (t === 'market') {
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff');
+    document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'default');
+  }
+})();
+</script>
 <style>
 :root {
   --bg: #141414; --card: #262626; --card-active: #333333; --border-mid: #333333;
   --text: #ffffff; --muted: #737373; --muted-strong: #a3a3a3;
   --accent: #d4ff00; --accent-dim: #a3cc00; --danger: #ef4444; --ok: #4ade80; --warn: #fbbf24;
+  --on-accent: #111; --track: #1c1c1c; --track-2: #2a2a2a; --status-band: var(--bg);
 }
+html[data-theme="market"] {
+  --bg: #f3f5f9; --card: #ffffff; --card-active: #eef1f6; --border-mid: #dde2ea;
+  --text: #101828; --muted: #667085; --muted-strong: #475467;
+  --accent: #444ce7; --accent-dim: #3538cd; --danger: #d92d20; --ok: #079455; --warn: #dc6803;
+  --on-accent: #ffffff; --track: #e4e7ec; --track-2: #e4e7ec; --status-band: #101828;
+}
+html[data-theme="market"] .header { background: linear-gradient(to bottom, var(--status-band) env(safe-area-inset-top), var(--bg) env(safe-area-inset-top)); }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-size: 15px; line-height: 1.45; padding-bottom: env(safe-area-inset-bottom); }
@@ -29,16 +50,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI"
 .mod .s { color: var(--muted-strong); font-size: 13px; margin-top: 2px; }
 .mod.locked { opacity: .55; cursor: default; }
 .mod .tag { float: right; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border-mid); border-radius: 4px; padding: 2px 6px; }
-.bar { height: 6px; background: #1c1c1c; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.bar { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; margin-top: 10px; }
 .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s; }
 .row { display: flex; gap: 10px; }
 .btn { flex: 1; font: inherit; font-weight: 600; font-size: 14px; letter-spacing: .5px; padding: 13px 12px; border-radius: 8px; border: 1px solid var(--border-mid); background: var(--card); color: var(--text); cursor: pointer; }
-.btn.primary { background: var(--accent); color: #111; border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .btn.ghost { background: none; color: var(--muted-strong); }
 .btn:disabled { opacity: .4; cursor: default; }
 .stage { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.stage .n { width: 26px; height: 26px; border-radius: 50%; background: #1c1c1c; display: grid; place-items: center; font-size: 12px; color: var(--muted-strong); flex: none; }
-.stage .n.done { background: var(--accent); color: #111; font-weight: 700; }
+.stage .n { width: 26px; height: 26px; border-radius: 50%; background: var(--track); display: grid; place-items: center; font-size: 12px; color: var(--muted-strong); flex: none; }
+.stage .n.done { background: var(--accent); color: var(--on-accent); font-weight: 700; }
 .stage .x { flex: 1; min-width: 0; }
 .stage .x b { display: block; font-weight: 600; }
 .stage .x span { font-size: 12.5px; color: var(--muted); }
@@ -57,7 +78,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI"
 .why { font-size: 14px; color: var(--muted-strong); }
 .why b { color: var(--text); }
 .progress { display: flex; gap: 4px; margin-bottom: 14px; }
-.progress i { flex: 1; height: 4px; border-radius: 2px; background: #2a2a2a; }
+.progress i { flex: 1; height: 4px; border-radius: 2px; background: var(--track-2); }
 .progress i.on { background: var(--accent); }
 .progress i.bad { background: var(--danger); }
 .q { font-size: 17px; font-weight: 600; margin: 4px 0 6px; }
