@@ -89,18 +89,26 @@ a { color: var(--accent); }
 .summary { color: var(--muted); font-size: 13px; margin: 12px 0 6px; }
 
 /* Lead rows */
-.row { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--shadow); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--shadow); }
 .row:hover { border-color: var(--hover); }
-.row.due { border-left: 3px solid var(--accent); }
-.score { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 15px; background: var(--card-2); border: 2px solid var(--line); font-variant-numeric: tabular-nums; }
-.score.s-hi { border-color: var(--hot); color: var(--hot); }
-.score.s-mid { border-color: var(--warm); color: var(--warm); }
-.score.s-lo { border-color: var(--cold); color: var(--cold); }
-.row .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .why { color: var(--muted-2); font-size: 13px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
-.row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--gain); }
-.row .val small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+.row .l1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.row .name { font-weight: 600; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .l2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--muted); min-width: 0; white-space: nowrap; }
+.row .l2 .due { color: var(--accent); font-weight: 600; }
+.row .why { color: var(--muted-2); font-size: 13px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.row .val { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--gain); }
+.temp { font-size: 10.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; flex-shrink: 0; background: var(--card-2); color: var(--muted-2); }
+.temp.hot { background: var(--hot-soft); color: var(--hot); } .temp.warm { background: var(--warm-soft); color: var(--warm); }
+.temp.cold { background: var(--cold-soft); color: var(--cold); } .temp.dnc { background: var(--dnc-soft); color: var(--muted-2); }
+.heat { display: inline-flex; gap: 2px; align-items: flex-end; flex-shrink: 0; }
+.heat i { width: 4px; border-radius: 2px; background: var(--line); }
+.heat i.on { background: var(--accent); }
+.sig-row { display: flex; gap: 12px; align-items: center; }
+.sig { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+.sig.seen { color: var(--accent); }
+.sig .ok { color: var(--good); } .sig .no { color: var(--bad); }
+.sig svg { display: block; }
 .tag { font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: var(--card-2); color: var(--muted-2); white-space: nowrap; }
 .tag.hot { background: var(--hot-soft); color: var(--hot); } .tag.warm { background: var(--warm-soft); color: var(--warm); }
 .tag.cold { background: var(--cold-soft); color: var(--cold); } .tag.dnc { background: var(--dnc-soft); color: var(--dnc); }
@@ -161,6 +169,44 @@ textarea { min-height: 76px; resize: vertical; }
 .reply { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 14px; margin-top: 8px; }
 .reply small { display: block; color: var(--muted); margin-top: 4px; }
 
+/* Lead sheet: lead status, signals, three steps */
+.sheet-head .head-r { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.sheet-head .head-r b { font-size: 19px; font-variant-numeric: tabular-nums; }
+.seg.temps button { min-width: 0; font-weight: 600; }
+.seg button.t-hot.on { background: var(--hot-soft); } .seg button.t-warm.on { background: var(--warm-soft); } .seg button.t-cold.on { background: var(--cold-soft); }
+.signals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 18px 0 4px; }
+.signals .s { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; color: var(--muted-2); min-width: 0; }
+.signals .s b { font-size: 17px; display: inline-flex; align-items: center; gap: 3px; color: var(--text); }
+.signals .s small { font-size: 11.5px; color: var(--muted); }
+.signals .s.seen, .signals .s.seen b { color: var(--accent); }
+.signals .s.next { color: var(--accent); } .signals .s.next b { font-size: 15px; }
+.signals .ok { color: var(--good); } .signals .no { color: var(--bad); }
+.step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.step-h { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.step-h .num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 12px; display: grid; place-items: center; }
+.step-h .step-r { margin-left: auto; font-weight: 400; font-size: 13px; color: var(--muted-2); }
+.step .where { font-size: 14.5px; }
+.step .reply { margin-top: 0; background: var(--card-2); border: 0; }
+.step .actions { margin: 0; }
+.step .actions a { padding: 14px 6px; font-size: 15px; }
+.step .outcomes { grid-template-columns: 1fr; }
+.step .outcomes button { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 46px; padding: 0 14px; font-size: 14.5px; border-radius: 10px; background: var(--card-2); color: var(--text); }
+.step .outcomes button small { font-size: 12px; color: var(--muted); }
+.step .outcomes button.on { background: var(--hero-bg); border: 2px solid var(--accent); color: var(--accent); font-weight: 600; }
+.step .outcomes.more-o button { min-height: 40px; font-size: 13.5px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; text-align: left; cursor: pointer; }
+.sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; margin-top: 4px; }
+.step .quick { margin-top: 0; }
+.quick button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.step textarea { min-height: 64px; }
+.save-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.save-row .save { margin-top: 0; text-transform: none; letter-spacing: 0; font-size: 15px; }
+.save.next { background: var(--text); color: var(--bg); }
+.more-d { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+.more-d summary { padding: 14px 0; cursor: pointer; font-size: 14px; }
+.more-d[open] { padding-bottom: 14px; }
+.more-d .sub { margin: 14px 0 6px; }
+
 /* Gate */
 .gate { max-width: 360px; margin: 18vh auto 0; text-align: center; }
 .gate input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 14px 0 10px; text-align: center; }
@@ -195,6 +241,8 @@ const OUTCOMES = [
   ['dnc', 'Do not contact'], ['note', 'Note only'],
 ];
 const OUTCOME_LABEL = Object.fromEntries(OUTCOMES);
+const MAIN_OUTCOMES = [['no-answer', 'No answer', 'call again in 2 days'], ['spoke', 'Spoke, still thinking', 'pick when below'], ['booked', 'Booked it', 'moves to booked'], ['not-interested', 'Not interested', 'off the list']];
+const MORE_OUTCOMES = [['quoted', 'Sent / re-sent the quote'], ['not-ready', 'Not ready yet, call later'], ['dnc', 'Do not contact'], ['note', 'Note only']];
 
 const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -357,7 +405,7 @@ const BUCKETS = () => [
   ['list', 'Call list', l => l.onList],
   ['due', 'Callbacks due', l => l.due && tempOf(l) !== 'dnc'],
   ['later', 'Postponed', l => l.nextCall && l.nextCall > todayKey() && tempOf(l) !== 'dnc'],
-  ...(view.list === 'tom' ? [['viewed', 'Opened / viewed quote', l => !!l.proposal]] : []),
+  ...(view.list === 'tom' ? [['viewed', 'Opened / viewed quote', l => !!(l.proposal && (l.proposal.views || l.proposal.emailOpened))]] : []),
   ...CATS.map(([k]) => [k, catLabel(k, view.list), l => l.category === k]),
   ['repeat', 'Repeat clean due', l => l.repeatDue && tempOf(l) !== 'dnc'],
   ['dnc', 'Do not contact', l => tempOf(l) === 'dnc'],
@@ -443,28 +491,50 @@ function filtersHTML() {
   </div>`;
 }
 
-function scoreClass(s) { return s >= 60 ? 's-hi' : s >= 40 ? 's-mid' : 's-lo'; }
+const TEMP_LABEL = { hot: 'Hot', warm: 'Warm', cold: 'Cold', dnc: 'Do not contact' };
+const tempPill = l => { const t = tempOf(l); return t ? `<span class="temp ${t}">${TEMP_LABEL[t]}</span>` : ''; };
+/** The score as 0–5 bars: how strongly the list says to call. */
+function heatHTML(score) {
+  const n = score >= 80 ? 5 : score >= 60 ? 4 : score >= 40 ? 3 : score >= 20 ? 2 : score > 0 ? 1 : 0;
+  return `<span class="heat" role="img" aria-label="Priority ${n} of 5">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? 'on' : ''}" style="height:${3 + i * 2}px"></i>`).join('')}</span>`;
+}
+const EYE = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const MAIL = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`;
+const TICK = s => `<svg class="ok" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="opened"><path d="M5 12l5 5L20 7"/></svg>`;
+const CROSS = s => `<svg class="no" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" role="img" aria-label="not opened"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+/** A quote went out: show the eye (total views, 0 if none) and the envelope (opened or not). */
+const quoted = l => listOf(l) === 'mine' || !!l.proposal || (l.jobs || []).some(j => j.quoteSent);
+function signalsHTML(l) {
+  if (!quoted(l)) return '';
+  const p = l.proposal || {}, views = p.views || 0;
+  const mail = p.emailsSent ? `<span class="sig">${MAIL(16)}${p.emailOpened ? TICK(11) : CROSS(10)}</span>` : '';
+  return `<span class="sig-row"><span class="sig ${views ? 'seen' : ''}" title="Proposal views">${EYE(16)}${views}</span>${mail}</span>`;
+}
+/** One short line: the suggestion (My proposals) or where it's at, without the phone symbol. */
+const ARROW = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+/** [what to do, why]: the agent's suggestion on My proposals; on Tom's list, the callback or where it's at. */
+function nextStep(l) {
+  if (l.suggestion) { const [a, ...b] = l.suggestion.replace(/^📞\s*/, '').split(':'); return [a.trim(), b.join(':').trim()]; }
+  if (l.nextCall) return [l.nextCall <= todayKey() ? 'Call today' : 'Call ' + fmt(l.nextCall), l.nextTime ? 'at ' + l.nextTime : 'callback set'];
+  if (tempOf(l) === 'dnc') return ['No call', 'do not contact'];
+  return l.onList ? ['Call', catLabel(l.category, listOf(l))] : ['No call needed', catLabel(l.category, listOf(l))];
+}
+const dayOnly = d => fmt(d).replace(/ \d{2}$/, ''); // "21 Oct", no year
+/** Step 1's line: where it's at, without the suggestion already shown above it. */
+const whereOf = l => { const w = (l.why || '').replace(/^📞[^·]*·\s*/, ''); return w.charAt(0).toUpperCase() + w.slice(1); };
+const reasonOf = l => (l.suggestion || l.why || '').replace(/^📞\s*/, '');
 
 function rowHTML(l) {
-  const t = tempOf(l);
-  const next = l.nextCall ? (l.nextCall <= todayKey() ? '<span class="tag due">Call today</span>' : `<span class="tag">Call ${fmt(l.nextCall)}${l.nextTime ? ' ' + l.nextTime : ''}</span>`) : '';
-  return `<div class="row ${l.due ? 'due' : ''}" data-key="${esc(l.key)}">
-    <div class="score ${scoreClass(l.score)}">${l.score || '–'}</div>
-    <div style="min-width:0"><div class="name">${esc(l.name)}</div><div class="why">${esc(l.why)}</div>
-      <div class="meta">${t ? `<span class="tag ${t}">${t === 'dnc' ? 'Do not contact' : t}${l.temp ? '' : ' (GHL)'}</span>` : ''}${next}
-        ${viewTag(l.proposal)}<span class="tag cat">${esc(catLabel(l.category, listOf(l)))}</span>${l.repeatDue ? '<span class="tag">Repeat due</span>' : ''}
-        ${l.lastCall ? `<span class="tag">Called ${ago(l.lastCall.at)}</span>` : ''}</div></div>
-    <div class="val"><span class="${l.value ? 'gain' : ''}">${money(l.value)}</span><small>${ago(l.enquired)}</small></div>
+  const next = l.nextCall ? (l.nextCall <= todayKey() ? '<span class="due">Call today</span>' : `<span>Call ${fmt(l.nextCall)}${l.nextTime ? ' ' + l.nextTime : ''}</span>`) : '';
+  return `<div class="row" data-key="${esc(l.key)}">
+    <div style="min-width:0">
+      <div class="l1"><span class="name">${esc(l.name)}</span>${tempPill(l)}</div>
+      <div class="l2">${heatHTML(l.score)}<span>${esc(catLabel(l.category, listOf(l)))}</span>${next}${l.repeatDue ? '<span>Repeat due</span>' : ''}</div>
+      <div class="why">${esc(reasonOf(l))}</div>
+    </div>
+    <div class="side"><span class="val ${l.value ? 'gain' : ''}">${money(l.value)}</span>${signalsHTML(l)}</div>
   </div>`;
 }
-
-/** 👁 viewed 3× · 2d ago, or ✉ opened 20 Oct when there are no views recorded. */
-function viewText(p, long) {
-  if (!p) return '';
-  if (p.views) return '👁 Viewed ' + (p.views === 1 ? 'once' : p.views + ' times') + ' · last ' + (long ? fmtDT(p.lastViewed) : ago(p.lastViewed));
-  return p.emailOpened ? '✉ Quote email opened ' + (long ? fmtDT(p.emailOpened) : fmt(p.emailOpened)) : '';
-}
-function viewTag(p) { const t = viewText(p); return t ? `<span class="tag view">${esc(t)}</span>` : ''; }
 
 function bind() {
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
@@ -536,59 +606,87 @@ function renderSheet() {
   const today = todayKey();
   const quick = [['Tomorrow', 1], ['2 days', 2], ['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['3 months', 91], ['6 months', 182]];
   const tempBtn = (v, label) => `<button class="t-${v || 'none'} ${temp === v || (!temp && !v) ? 'on' : ''}" data-temp="${v}">${label}</button>`;
+  const step = (n, title, extra) => `<div class="step-h"><span class="num">${n}</span><span>${title}</span>${extra || ''}</div>`;
+  const p = l.proposal || {};
+  const ns = nextStep(l);
+  const outcomeBtn = ([k, label, hint]) => `<button data-outcome="${k}" class="${draft.outcome === k ? 'on' : ''} o-${k}"><span>${esc(label)}</span>${hint ? `<small>${esc(hint)}</small>` : ''}</button>`;
+  const moreOpen = draft.more || MORE_OUTCOMES.some(([k]) => k === draft.outcome);
   document.getElementById('sheet').innerHTML = `
-    <div class="sheet-head"><h2>${esc(l.name)}<small>${esc(catLabel(l.category, listOf(l)))}${l.manualCategory ? ' (set by you)' : ''} · score ${l.score}${listOf(l) === 'mine' ? ' · your quote' : ''}</small></h2><button class="x" id="x">✕</button></div>
-    <div class="actions">
-      <a class="call ${tel ? '' : 'off'}" href="tel:${esc(tel)}">Call</a>
-      <a class="${tel ? '' : 'off'}" href="sms:${esc(tel)}">Text</a>
-      <a class="${l.email ? '' : 'off'}" href="mailto:${esc(l.email)}">Email</a>
-    </div>
-    <div class="sec"><h3>Where it’s at</h3><div style="font-size:14.5px">${esc(l.why)}</div>${l.stage ? `<p class="note">GHL stage: ${esc(l.stage)}</p>` : ''}</div>
-    ${l.proposal ? `<div class="sec"><h3>Proposal</h3><dl class="kv">
-      <dt>Viewed</dt><dd>${l.proposal.views ? esc(viewText(l.proposal, true).replace('👁 ', '')) : 'No views recorded yet' + (data.viewsSince ? ' (ServiceM8 sends them since ' + fmt(data.viewsSince) + ')' : '')}</dd>
-      ${l.proposal.emailsSent ? `<dt>Quote email</dt><dd>${l.proposal.emailsOpened} of ${l.proposal.emailsSent} opened${l.proposal.emailOpened ? ', first ' + fmtDT(l.proposal.emailOpened) : ''}</dd>` : ''}
-    </dl>${l.lastReply ? `<div class="reply">“${esc(l.lastReply.text.slice(0, 600))}${l.lastReply.text.length > 600 ? '…' : ''}”<small>Their last email reply · ${fmtDT(l.lastReply.at)}</small></div>` : ''}</div>` : ''}
-    <div class="sec"><h3>Details</h3><dl class="kv">
-      <dt>Phone</dt><dd>${esc(l.phone) || '—'}</dd>
-      <dt>Email</dt><dd>${esc(l.email) || '—'}</dd>
-      <dt>Address</dt><dd>${l.address ? `<a href="https://maps.apple.com/?q=${encodeURIComponent(l.address)}" target="_blank">${esc(l.address)}</a>` : '—'}</dd>
-      <dt>Quote</dt><dd>${money(l.value)}${l.valueFrom ? ` <span class="tag">${esc(l.valueFrom)}</span>` : ''}</dd>
-      <dt>Services</dt><dd>${esc((l.services || []).join(', ')) || '—'}</dd>
-      <dt>Enquired</dt><dd>${fmt(l.enquired)} (${ago(l.enquired)})${l.source ? ' · ' + esc(l.source) : ''}</dd>
-      ${l.quotedOn ? `<dt>Quoted</dt><dd>${fmt(l.quotedOn)}</dd>` : ''}
-      ${l.existingClient ? '<dt>Client</dt><dd>Existing client</dd>' : ''}
-      ${(l.tags || []).length ? `<dt>GHL tags</dt><dd>${(l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</dd>` : ''}
-    </dl></div>
-    ${(l.jobs || []).length ? `<div class="sec"><h3>ServiceM8 jobs</h3><div class="items">${l.jobs.map(j => `<div>#${esc(j.number)} · ${esc(j.status)}${j.total ? ' · ' + money(j.total) : ''}<br><small>Made ${fmt(j.date)}${j.completed ? ' · done ' + fmt(j.completed) : ''}${j.nextVisit ? ' · visit ' + fmtDT(j.nextVisit) : j.lastVisit ? ' · last visit ' + fmtDT(j.lastVisit) : ''}${j.quoteSent ? ' · quote sent' : ''}${j.proposal ? ' · ' + esc(viewText(j.proposal)) : ''}</small></div>`).join('')}</div></div>` : ''}
-    ${(l.appts || []).length ? `<div class="sec"><h3>Calendar</h3><div class="items">${l.appts.map(a => `<div>${fmtDT(a.start)} · ${esc(a.calendar)}${/cancel/i.test(a.status) ? ' · <b>cancelled</b>' : ''}<br><small>${esc(a.title)}${a.moved ? ' · changed after booking' : ''}</small></div>`).join('')}</div></div>` : ''}
+    <div class="sheet-head"><h2>${esc(l.name)}<small>${esc([l.address, catLabel(l.category, listOf(l))].filter(Boolean).join(' · '))}</small></h2>
+      <div class="head-r"><b class="${l.value ? 'gain' : ''}">${money(l.value)}</b><button class="x" id="x" aria-label="Close">✕</button></div></div>
+    <div class="sec"><h3>Lead status</h3><div class="seg temps">${tempBtn('hot', 'Hot')}${tempBtn('warm', 'Warm')}${tempBtn('cold', 'Cold')}${tempBtn('dnc', 'Do not contact')}${tempBtn('', 'Not set')}</div>
+      ${l.autoTemp && !l.temp ? `<p class="note">Not set by you yet: GHL’s lead score says ${esc(l.autoTemp)}.</p>` : ''}</div>
 
-    <div class="sec"><h3>Log a call</h3><div class="outcomes">${OUTCOMES.map(([k, label]) => `<button data-outcome="${k}" class="${draft.outcome === k ? 'on' : ''}">${esc(label)}</button>`).join('')}</div>
-      <textarea id="note" placeholder="What was said, details to remember…" style="margin-top:8px">${esc(draft.note || '')}</textarea></div>
-    <div class="sec"><h3>Next call</h3>
-      <div class="when"><input type="date" id="next" value="${esc(next)}" min="${today}"><input type="time" id="time" value="${esc(time)}" style="max-width:130px"></div>
-      <div class="quick">${quick.map(([label, n]) => `<button data-days="${n}">${label}</button>`).join('')}<button data-days="">Clear</button></div>
-      <p class="note">A date puts it in that morning’s calendar reminder. Add a time to get its own calendar alert.</p></div>
-    <div class="sec"><h3>Temperature</h3><div class="seg">${tempBtn('hot', 'Hot')}${tempBtn('warm', 'Warm')}${tempBtn('cold', 'Cold')}${tempBtn('dnc', 'Do not contact')}${tempBtn('', 'Not set')}</div>
-      ${l.autoTemp && !l.temp ? `<p class="note">GHL lead score says ${esc(l.autoTemp)}.</p>` : ''}</div>
-    <div class="sec"><h3>Bucket</h3><select class="field" id="cat"><option value="">Automatic (${esc(catLabel(l.autoCategory, listOf(l)))})</option>${CATS.map(([k]) => `<option value="${k}" ${cat === k ? 'selected' : ''}>${esc(catLabel(k, listOf(l)))}</option>`).join('')}</select></div>
-    <button class="save" id="save">Save</button>
-    ${(l.log || []).length ? `<div class="sec"><h3>History</h3><div class="log">${l.log.map(e => `<div><b>${esc(OUTCOME_LABEL[e.outcome] || (e.outcome ? e.outcome : 'Note'))}</b>${e.note ? ': ' + esc(e.note) : ''}<small>${fmtDT(e.at)}${e.by ? ' · ' + esc(e.by) : ''}</small></div>`).join('')}</div></div>` : ''}
+    <div class="signals">
+      ${quoted(l) ? `<div class="s ${p.views ? 'seen' : ''}">${EYE(22)}<b>${p.views || 0}</b><small>${p.views ? (p.views === 1 ? 'view' : 'views') + ' · last ' + dayOnly(p.lastViewed) : 'views'}</small></div>
+      <div class="s">${MAIL(22)}<b>${p.emailsSent ? (p.emailOpened ? TICK(14) + 'Opened' : CROSS(13) + 'Not opened') : '–'}</b><small>${p.emailsSent ? (p.emailOpened ? 'quote email · ' + dayOnly(p.emailOpened) : 'quote email') : 'no quote email'}</small></div>` : ''}
+      <div class="s next">${ARROW(22)}<b>${esc(ns[0])}</b><small>${esc(ns[1])}</small></div>
+    </div>
+
+    <div class="step">${step(1, 'Before you call')}
+      <div class="where">${esc(whereOf(l))}</div>${l.stage ? `<p class="note">GHL stage: ${esc(l.stage)}</p>` : ''}
+      ${l.lastReply ? `<div class="reply">“${esc(l.lastReply.text.slice(0, 600))}${l.lastReply.text.length > 600 ? '…' : ''}”<small>Their last email · ${fmtDT(l.lastReply.at)}</small></div>` : ''}
+      ${l.lastCall ? `<p class="note">Last call: ${esc(OUTCOME_LABEL[l.lastCall.outcome] || 'Note')}${l.lastCall.note ? ', “' + esc(l.lastCall.note) + '”' : ''} · ${ago(l.lastCall.at)}</p>` : ''}
+    </div>
+
+    <div class="step">${step(2, 'Call', l.phone ? `<span class="step-r">${esc(l.phone)}</span>` : '')}
+      <div class="actions">
+        <a class="call ${tel ? '' : 'off'}" href="tel:${esc(tel)}">Call</a>
+        <a class="${tel ? '' : 'off'}" href="sms:${esc(tel)}">Text</a>
+        <a class="${l.email ? '' : 'off'}" href="mailto:${esc(l.email)}">Email</a>
+      </div>
+    </div>
+
+    <div class="step">${step(3, 'What happened?')}
+      <div class="outcomes">${MAIN_OUTCOMES.map(outcomeBtn).join('')}</div>
+      ${moreOpen ? `<div class="outcomes more-o">${MORE_OUTCOMES.map(outcomeBtn).join('')}</div>` : `<button class="linkish" id="more-o">More: re-sent quote, not ready yet, do not contact, note only</button>`}
+      <div class="sub">Call again</div>
+      <div class="quick">${quick.map(([label, n]) => `<button data-days="${n}" class="${next && next === addDays(today, n) ? 'on' : ''}">${label}</button>`).join('')}<button data-days="">Clear</button></div>
+      <div class="when"><input type="date" id="next" value="${esc(next)}" min="${today}" aria-label="Call again on"><input type="time" id="time" value="${esc(time)}" style="max-width:130px" aria-label="At"></div>
+      <textarea id="note" placeholder="Note: what was said, details to remember…">${esc(draft.note || '')}</textarea>
+      <div class="save-row"><button class="save" id="save">Save</button><button class="save next" id="save-next">Save and next lead</button></div>
+    </div>
+
+    <details class="more-d"><summary>Details, ServiceM8 jobs, history</summary>
+      <dl class="kv">
+        <dt>Phone</dt><dd>${esc(l.phone) || '—'}</dd>
+        <dt>Email</dt><dd>${esc(l.email) || '—'}</dd>
+        <dt>Address</dt><dd>${l.address ? `<a href="https://maps.apple.com/?q=${encodeURIComponent(l.address)}" target="_blank">${esc(l.address)}</a>` : '—'}</dd>
+        <dt>Quote</dt><dd>${money(l.value)}${l.valueFrom ? ` <span class="tag">${esc(l.valueFrom)}</span>` : ''}</dd>
+        <dt>Services</dt><dd>${esc((l.services || []).join(', ')) || '—'}</dd>
+        <dt>Enquired</dt><dd>${fmt(l.enquired)} (${ago(l.enquired)})${l.source ? ' · ' + esc(l.source) : ''}</dd>
+        ${l.quotedOn ? `<dt>Quoted</dt><dd>${fmt(l.quotedOn)}</dd>` : ''}
+        ${p.emailsSent ? `<dt>Quote emails</dt><dd>${p.emailsOpened} of ${p.emailsSent} opened</dd>` : ''}
+        ${l.existingClient ? '<dt>Client</dt><dd>Existing client</dd>' : ''}
+        ${(l.tags || []).length ? `<dt>GHL tags</dt><dd>${(l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</dd>` : ''}
+        <dt>Priority</dt><dd>${heatHTML(l.score)} <small class="note">score ${l.score}</small></dd>
+      </dl>
+      <div class="sub">Bucket</div>
+      <select class="field" id="cat"><option value="">Automatic (${esc(catLabel(l.autoCategory, listOf(l)))})</option>${CATS.map(([k]) => `<option value="${k}" ${cat === k ? 'selected' : ''}>${esc(catLabel(k, listOf(l)))}</option>`).join('')}</select>
+      ${(l.jobs || []).length ? `<div class="sub">ServiceM8 jobs</div><div class="items">${l.jobs.map(j => `<div>#${esc(j.number)} · ${esc(j.status)}${j.total ? ' · ' + money(j.total) : ''}<br><small>Made ${fmt(j.date)}${j.completed ? ' · done ' + fmt(j.completed) : ''}${j.nextVisit ? ' · visit ' + fmtDT(j.nextVisit) : j.lastVisit ? ' · last visit ' + fmtDT(j.lastVisit) : ''}${j.quoteSent ? ' · quote sent' : ''}${j.proposal && j.proposal.views ? ' · viewed ' + j.proposal.views + '×' : ''}</small></div>`).join('')}</div>` : ''}
+      ${(l.appts || []).length ? `<div class="sub">Calendar</div><div class="items">${l.appts.map(a => `<div>${fmtDT(a.start)} · ${esc(a.calendar)}${/cancel/i.test(a.status) ? ' · <b>cancelled</b>' : ''}<br><small>${esc(a.title)}${a.moved ? ' · changed after booking' : ''}</small></div>`).join('')}</div>` : ''}
+      ${(l.log || []).length ? `<div class="sub">History</div><div class="log">${l.log.map(e => `<div><b>${esc(OUTCOME_LABEL[e.outcome] || (e.outcome ? e.outcome : 'Note'))}</b>${e.note ? ': ' + esc(e.note) : ''}<small>${fmtDT(e.at)}${e.by ? ' · ' + esc(e.by) : ''}</small></div>`).join('')}</div>` : ''}
+    </details>
   `;
   const sheet = document.getElementById('sheet');
   document.getElementById('x').addEventListener('click', closeLead);
   sheet.querySelectorAll('[data-outcome]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.outcome = draft.outcome === b.dataset.outcome ? undefined : b.dataset.outcome; renderSheet(); }));
   sheet.querySelectorAll('[data-temp]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.temp = b.dataset.temp; renderSheet(); }));
   sheet.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.nextCall = b.dataset.days ? addDays(today, Number(b.dataset.days)) : ''; if (!b.dataset.days) draft.nextTime = ''; renderSheet(); }));
+  document.getElementById('more-o')?.addEventListener('click', () => { keepNote(); draft.more = true; renderSheet(); });
   document.getElementById('next').addEventListener('change', e => { keepNote(); draft.nextCall = e.target.value; });
   document.getElementById('time').addEventListener('change', e => { keepNote(); draft.nextTime = e.target.value; });
   document.getElementById('cat').addEventListener('change', e => { keepNote(); draft.category = e.target.value; });
   document.getElementById('save').addEventListener('click', () => saveLead(l));
+  document.getElementById('save-next').addEventListener('click', () => saveLead(l, true));
 }
 
 function keepNote() { const n = document.getElementById('note'); if (n) draft.note = n.value; }
 
-async function saveLead(l) {
+async function saveLead(l, goNext) {
   keepNote();
+  const list = filtered(), i = list.findIndex(x => x.key === l.key);
+  const nextKey = goNext ? list[i + 1]?.key : null;
   const edit = { key: l.key };
   if (draft.outcome) edit.outcome = draft.outcome;
   if ((draft.note || '').trim()) edit.note = draft.note.trim();
@@ -602,7 +700,7 @@ async function saveLead(l) {
   try {
     await send(edit);
     toast('Saved');
-    closeLead();
+    if (nextKey) openLead(nextKey); else closeLead();
   } catch (err) {
     btn.disabled = false;
     toast(String(err.message || err));
