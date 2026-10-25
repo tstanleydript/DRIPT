@@ -21,7 +21,8 @@
 })();
 </script>
 <!--
-  The call list: every lead Tom has handled, sorted by where it ended up, hottest first.
+  The call list: every lead Tom has handled, sorted by where it ended up, hottest first, and a second
+  list, "My proposals": Tim's own quotes the client opened or viewed, most interested first.
   Two homes, one file:
    - the review site on the office Mac (localhost:4800/calls): reads and saves through the agent
    - GitHub Pages next to the rep app (calls.html): reads and saves through the Apps Script with the
@@ -151,6 +152,15 @@ textarea { min-height: 76px; resize: vertical; }
 .log small { color: var(--muted); display: block; }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%); background: var(--card-2); border: 1px solid var(--line); color: var(--text); padding: 10px 16px; border-radius: 20px; font-size: 14px; z-index: 30; display: none; }
 
+/* Lists & proposal views */
+.lists { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; }
+.lists button { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 9px 8px; cursor: pointer; font-size: 13.5px; color: var(--muted-2); }
+.lists button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.lists button b { margin-left: 4px; color: var(--text); }
+.tag.view { background: var(--cold-soft); color: var(--cold); }
+.reply { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 14px; margin-top: 8px; }
+.reply small { display: block; color: var(--muted); margin-top: 4px; }
+
 /* Gate */
 .gate { max-width: 360px; margin: 18vh auto 0; text-align: center; }
 .gate input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 14px 0 10px; text-align: center; }
@@ -175,6 +185,10 @@ const CATS = [
 ];
 const OPEN = new Set(['no-followup', 'not-ready', 'cancelled', 'never-quoted', 'lost']);
 const CAT_LABEL = Object.fromEntries(CATS);
+// The same buckets read differently on My proposals.
+const MINE_LABEL = { 'no-followup': 'Waiting on them', lost: 'Said no / unsuccessful', upcoming: 'Accepted, booked', done: 'Accepted, done' };
+const listOf = l => l.list || 'tom';
+const catLabel = (k, list) => (list === 'mine' && MINE_LABEL[k]) || CAT_LABEL[k];
 const OUTCOMES = [
   ['no-answer', 'No answer / left message'], ['spoke', 'Spoke, still thinking'], ['quoted', 'Sent / re-sent the quote'],
   ['not-ready', 'Not ready yet, call later'], ['booked', 'Booked it'], ['not-interested', 'Not interested'],
@@ -198,7 +212,8 @@ function toast(msg) { const t = document.getElementById('toast'); t.textContent 
 // --- State -----------------------------------------------------------------------------------
 let data = load(STORE.data, null);
 let outbox = load(STORE.outbox, []);
-const view = Object.assign({ bucket: 'list', q: '', temp: '', from: '', to: '', min: '', max: '', sort: 'score', filters: false }, load(STORE.view, {}));
+const view = Object.assign({ list: 'tom', bucket: 'list', q: '', temp: '', from: '', to: '', min: '', max: '', sort: 'score', filters: false }, load(STORE.view, {}));
+{ const q = new URLSearchParams(location.search).get('list'); if (q === 'mine' || q === 'tom') { view.list = q; view.bucket = 'list'; } } // calls.html?list=mine opens My proposals
 let shown = 60;
 let openKey = null;
 
@@ -273,7 +288,6 @@ async function flush() {
 function replaceLead(lead) {
   const i = data.leads.findIndex(l => l.key === lead.key);
   if (i >= 0) data.leads[i] = lead; else data.leads.push(lead);
-  data.totals = totals(data.leads);
 }
 
 // The same rules as updateCall() in the agent (calls.ts), so the phone shows a change straight away.
@@ -299,9 +313,15 @@ function applyLocal(e) {
     if (e.at.slice(0, 10) > l.lastTouch) l.lastTouch = e.at.slice(0, 10);
   }
   l.due = !!l.nextCall && l.nextCall <= today;
+  if (listOf(l) === 'mine') {
+    // My proposals keep the agent's score; a logged call takes it off today's list until they look again.
+    if (e.outcome && e.outcome !== 'note') l.handled = true;
+    if (tempOf(l) === 'dnc' || !OPEN.has(l.category)) l.score = 0;
+    l.onList = (l.suggestion || '').startsWith('📞') && OPEN.has(l.category) && tempOf(l) !== 'dnc' && (!l.nextCall || l.nextCall <= today) && !(l.handled && !l.due);
+    return;
+  }
   l.score = score(l, today);
   l.onList = (OPEN.has(l.category) || l.repeatDue) && tempOf(l) !== 'dnc' && (!l.nextCall || l.nextCall <= today);
-  data.totals = totals(data.leads);
 }
 
 // Port of score() in calls.ts.
@@ -332,11 +352,13 @@ function totals(list) {
 }
 
 // --- Filtering -----------------------------------------------------------------------------------
+const leads = () => data.leads.filter(l => listOf(l) === view.list);
 const BUCKETS = () => [
   ['list', 'Call list', l => l.onList],
   ['due', 'Callbacks due', l => l.due && tempOf(l) !== 'dnc'],
   ['later', 'Postponed', l => l.nextCall && l.nextCall > todayKey() && tempOf(l) !== 'dnc'],
-  ...CATS.map(([k, label]) => [k, label, l => l.category === k]),
+  ...(view.list === 'tom' ? [['viewed', 'Opened / viewed quote', l => !!l.proposal]] : []),
+  ...CATS.map(([k]) => [k, catLabel(k, view.list), l => l.category === k]),
   ['repeat', 'Repeat clean due', l => l.repeatDue && tempOf(l) !== 'dnc'],
   ['dnc', 'Do not contact', l => tempOf(l) === 'dnc'],
   ['all', 'All', () => true],
@@ -346,7 +368,7 @@ function filtered() {
   const b = BUCKETS().find(x => x[0] === view.bucket) || BUCKETS()[0];
   const q = view.q.trim().toLowerCase();
   const min = Number(view.min) || 0, max = Number(view.max) || Infinity;
-  let list = data.leads.filter(b[2]).filter(l => {
+  let list = leads().filter(b[2]).filter(l => {
     if (q && ![l.name, l.phone, l.email, l.address, l.why, (l.services || []).join(' '), (l.log || []).map(e => e.note).join(' ')].join(' ').toLowerCase().includes(q)) return false;
     if (view.temp && (view.temp === 'none' ? tempOf(l) : tempOf(l) !== view.temp)) return false;
     if (view.from && l.enquired < view.from) return false;
@@ -371,29 +393,37 @@ function render() {
   if (!LOCAL && !load(STORE.code, '')) return renderGate(app);
   const back = LOCAL ? '<a href="/">‹ Review</a>' : '<a href="./">‹ App</a>';
   if (!data) { app.innerHTML = `<div class="top">${back}<h1>Call list</h1></div><div class="empty" style="margin-top:20px">Loading…</div>`; return; }
-  const t = data.totals;
-  const rate = data.rate || 7;
+  const mine = view.list === 'mine';
+  const all = leads();
+  const t = totals(all);
+  const rate = mine ? (data.myRate || 20) : (data.rate || 7);
   const potential = t.knownValue + t.estValue;
   const list = filtered();
-  const counts = BUCKETS().map(([k, label, fn]) => [k, label, data.leads.filter(fn).length]);
+  // Empty buckets are hidden on My proposals (most never apply there).
+  const counts = BUCKETS().map(([k, label, fn]) => [k, label, all.filter(fn).length]).filter(([k, , n]) => !mine || n || k === view.bucket || ['list', 'due', 'later', 'all'].includes(k));
+  const nTom = data.leads.filter(l => listOf(l) === 'tom').length, nMine = data.leads.length - nTom;
+  const owner = String(data.owner || 'Tom').split(' ')[0];
   const stale = Date.now() - Date.parse(data.generatedAt) > 6 * 3600000;
   app.innerHTML = `
-    <div class="top">${back}<h1>Call list<small>${esc(data.owner)}’s leads · ${data.leads.length}</small></h1><button id="reload">↻</button></div>
+    <div class="top">${back}<h1>Call list<small>${mine ? 'Your quotes they opened or viewed' : esc(data.owner) + '’s leads'} · ${all.length}</small></h1><button id="reload">↻</button></div>
     ${stale ? `<div class="warn">This list is from ${fmtDT(data.generatedAt)}. The office computer updates it every 2 hours while it’s on.</div>` : ''}
+    <div class="lists"><button data-list="tom" class="${mine ? '' : 'on'}">${esc(owner)}’s leads<b>${nTom}</b></button><button data-list="mine" class="${mine ? 'on' : ''}">My proposals<b>${nMine}</b></button></div>
     <div class="money">
-      <div class="tile"><b class="gain">${money(potential)}</b><span>Potential revenue in ${t.open} open leads<br>${money(t.knownValue)} quoted${t.estValue ? ` + ${money(t.estValue)} est. for ${t.open - t.openKnown} with no price (median ${money(t.median)})` : ''}</span></div>
-      <div class="tile accent"><b id="comm" class="gain">${money(commission(potential, rate))}</b><span>Potential commission at <span id="rate-label">${rate}</span>% (ex GST)</span>
-        <div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div></div>
-      <div class="tile"><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} booked, coming up · <span id="comm-up">${money(commission(t.upcomingValue, rate))}</span></span></div>
-      <div class="tile"><b class="plain">${money(t.doneValue)}</b><span>${t.done} jobs done from these leads</span></div>
+      <div class="tile"><b class="gain">${money(potential)}</b><span>Potential revenue in ${t.open} open ${mine ? 'quotes' : 'leads'}<br>${money(t.knownValue)} quoted${t.estValue ? ` + ${money(t.estValue)} est. for ${t.open - t.openKnown} with no price (median ${money(t.median)})` : ''}</span></div>
+      ${mine
+        ? `<div class="tile accent"><b class="gain">${money(commission(potential, rate))}</b><span>Your commission on them at ${rate}% (ex GST)</span></div>`
+        : `<div class="tile accent"><b id="comm" class="gain">${money(commission(potential, rate))}</b><span>Potential commission at <span id="rate-label">${rate}</span>% (ex GST)</span>
+        <div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div></div>`}
+      <div class="tile"><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} ${mine ? 'accepted' : 'booked'}, coming up · <span id="comm-up">${money(commission(t.upcomingValue, rate))}</span></span></div>
+      <div class="tile"><b class="plain">${money(t.doneValue)}</b><span>${t.done} jobs done from these ${mine ? 'quotes' : 'leads'}</span></div>
     </div>
     <div class="chips">${counts.map(([k, label, n]) => `<button class="chip ${view.bucket === k ? 'on' : ''}" data-bucket="${k}">${esc(label)}<b>${n}</b></button>`).join('')}</div>
     <button class="toggle-filters" id="toggle-filters">${view.filters ? '▾ Hide filters' : '▸ Filter & sort'}${activeFilters() ? ` · ${activeFilters()} on` : ''}</button>
     ${view.filters ? filtersHTML() : ''}
-    <div class="summary">${list.length} lead${list.length === 1 ? '' : 's'} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))} quoted${view.bucket === 'list' ? ' · open leads not postponed, hottest first' : ''}</div>
+    <div class="summary">${list.length} lead${list.length === 1 ? '' : 's'} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))} quoted${view.bucket === 'list' ? (mine ? ' · opened or viewed, most interested first' : ' · open leads not postponed, hottest first') : ''}</div>
     <div id="rows">${list.length ? list.slice(0, shown).map(rowHTML).join('') : '<div class="empty">Nothing here</div>'}</div>
     ${list.length > shown ? `<button class="more" id="more">Show more (${list.length - shown} left)</button>` : ''}
-    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Potential = open leads (not booked, done or do-not-contact). Commission = revenue ÷ 1.1 × rate.</p>`;
+    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Potential = open ${mine ? 'quotes' : 'leads'} (not booked, done or do-not-contact). Commission = revenue ÷ 1.1 × rate.${mine || view.bucket === 'viewed' ? ` 👁 Proposal views come from ServiceM8${data.viewsSince ? ' since ' + fmt(data.viewsSince) : ' (switching on)'}; before that, ✉ shows when the quote email was opened. An email “opened” the moment it arrived is usually the email app, not the client.` : ''}</p>`;
   bind();
 }
 
@@ -422,15 +452,24 @@ function rowHTML(l) {
     <div class="score ${scoreClass(l.score)}">${l.score || '–'}</div>
     <div style="min-width:0"><div class="name">${esc(l.name)}</div><div class="why">${esc(l.why)}</div>
       <div class="meta">${t ? `<span class="tag ${t}">${t === 'dnc' ? 'Do not contact' : t}${l.temp ? '' : ' (GHL)'}</span>` : ''}${next}
-        <span class="tag cat">${esc(CAT_LABEL[l.category])}</span>${l.repeatDue ? '<span class="tag">Repeat due</span>' : ''}
+        ${viewTag(l.proposal)}<span class="tag cat">${esc(catLabel(l.category, listOf(l)))}</span>${l.repeatDue ? '<span class="tag">Repeat due</span>' : ''}
         ${l.lastCall ? `<span class="tag">Called ${ago(l.lastCall.at)}</span>` : ''}</div></div>
     <div class="val"><span class="${l.value ? 'gain' : ''}">${money(l.value)}</span><small>${ago(l.enquired)}</small></div>
   </div>`;
 }
 
+/** 👁 viewed 3× · 2d ago, or ✉ opened 20 Oct when there are no views recorded. */
+function viewText(p, long) {
+  if (!p) return '';
+  if (p.views) return '👁 Viewed ' + (p.views === 1 ? 'once' : p.views + ' times') + ' · last ' + (long ? fmtDT(p.lastViewed) : ago(p.lastViewed));
+  return p.emailOpened ? '✉ Quote email opened ' + (long ? fmtDT(p.emailOpened) : fmt(p.emailOpened)) : '';
+}
+function viewTag(p) { const t = viewText(p); return t ? `<span class="tag view">${esc(t)}</span>` : ''; }
+
 function bind() {
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
   on('reload', 'click', () => LOCAL ? localRefresh() : refresh(false));
+  document.querySelectorAll('[data-list]').forEach(b => b.addEventListener('click', () => { view.list = b.dataset.list; view.bucket = 'list'; shown = 60; save(STORE.view, view); render(); }));
   document.querySelectorAll('[data-bucket]').forEach(b => b.addEventListener('click', () => { view.bucket = b.dataset.bucket; shown = 60; save(STORE.view, view); render(); }));
   document.querySelectorAll('.row').forEach(r => r.addEventListener('click', () => openLead(r.dataset.key)));
   on('more', 'click', () => { shown += 100; render(); });
@@ -441,7 +480,7 @@ function bind() {
   const rate = document.getElementById('rate');
   if (rate) {
     rate.addEventListener('input', () => {
-      const pct = Number(rate.value), t = data.totals;
+      const pct = Number(rate.value), t = totals(leads());
       document.getElementById('rate-out').textContent = pct + '%';
       document.getElementById('rate-label').textContent = pct;
       document.getElementById('comm').textContent = money(commission(t.knownValue + t.estValue, pct));
@@ -498,13 +537,17 @@ function renderSheet() {
   const quick = [['Tomorrow', 1], ['2 days', 2], ['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['3 months', 91], ['6 months', 182]];
   const tempBtn = (v, label) => `<button class="t-${v || 'none'} ${temp === v || (!temp && !v) ? 'on' : ''}" data-temp="${v}">${label}</button>`;
   document.getElementById('sheet').innerHTML = `
-    <div class="sheet-head"><h2>${esc(l.name)}<small>${esc(CAT_LABEL[l.category])}${l.manualCategory ? ' (set by you)' : ''} · score ${l.score}</small></h2><button class="x" id="x">✕</button></div>
+    <div class="sheet-head"><h2>${esc(l.name)}<small>${esc(catLabel(l.category, listOf(l)))}${l.manualCategory ? ' (set by you)' : ''} · score ${l.score}${listOf(l) === 'mine' ? ' · your quote' : ''}</small></h2><button class="x" id="x">✕</button></div>
     <div class="actions">
       <a class="call ${tel ? '' : 'off'}" href="tel:${esc(tel)}">Call</a>
       <a class="${tel ? '' : 'off'}" href="sms:${esc(tel)}">Text</a>
       <a class="${l.email ? '' : 'off'}" href="mailto:${esc(l.email)}">Email</a>
     </div>
     <div class="sec"><h3>Where it’s at</h3><div style="font-size:14.5px">${esc(l.why)}</div>${l.stage ? `<p class="note">GHL stage: ${esc(l.stage)}</p>` : ''}</div>
+    ${l.proposal ? `<div class="sec"><h3>Proposal</h3><dl class="kv">
+      <dt>Viewed</dt><dd>${l.proposal.views ? esc(viewText(l.proposal, true).replace('👁 ', '')) : 'No views recorded yet' + (data.viewsSince ? ' (ServiceM8 sends them since ' + fmt(data.viewsSince) + ')' : '')}</dd>
+      ${l.proposal.emailsSent ? `<dt>Quote email</dt><dd>${l.proposal.emailsOpened} of ${l.proposal.emailsSent} opened${l.proposal.emailOpened ? ', first ' + fmtDT(l.proposal.emailOpened) : ''}</dd>` : ''}
+    </dl>${l.lastReply ? `<div class="reply">“${esc(l.lastReply.text.slice(0, 600))}${l.lastReply.text.length > 600 ? '…' : ''}”<small>Their last email reply · ${fmtDT(l.lastReply.at)}</small></div>` : ''}</div>` : ''}
     <div class="sec"><h3>Details</h3><dl class="kv">
       <dt>Phone</dt><dd>${esc(l.phone) || '—'}</dd>
       <dt>Email</dt><dd>${esc(l.email) || '—'}</dd>
@@ -516,7 +559,7 @@ function renderSheet() {
       ${l.existingClient ? '<dt>Client</dt><dd>Existing client</dd>' : ''}
       ${(l.tags || []).length ? `<dt>GHL tags</dt><dd>${(l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(' ')}</dd>` : ''}
     </dl></div>
-    ${(l.jobs || []).length ? `<div class="sec"><h3>ServiceM8 jobs</h3><div class="items">${l.jobs.map(j => `<div>#${esc(j.number)} · ${esc(j.status)}${j.total ? ' · ' + money(j.total) : ''}<br><small>Made ${fmt(j.date)}${j.completed ? ' · done ' + fmt(j.completed) : ''}${j.nextVisit ? ' · visit ' + fmtDT(j.nextVisit) : j.lastVisit ? ' · last visit ' + fmtDT(j.lastVisit) : ''}${j.quoteSent ? ' · quote sent' : ''}</small></div>`).join('')}</div></div>` : ''}
+    ${(l.jobs || []).length ? `<div class="sec"><h3>ServiceM8 jobs</h3><div class="items">${l.jobs.map(j => `<div>#${esc(j.number)} · ${esc(j.status)}${j.total ? ' · ' + money(j.total) : ''}<br><small>Made ${fmt(j.date)}${j.completed ? ' · done ' + fmt(j.completed) : ''}${j.nextVisit ? ' · visit ' + fmtDT(j.nextVisit) : j.lastVisit ? ' · last visit ' + fmtDT(j.lastVisit) : ''}${j.quoteSent ? ' · quote sent' : ''}${j.proposal ? ' · ' + esc(viewText(j.proposal)) : ''}</small></div>`).join('')}</div></div>` : ''}
     ${(l.appts || []).length ? `<div class="sec"><h3>Calendar</h3><div class="items">${l.appts.map(a => `<div>${fmtDT(a.start)} · ${esc(a.calendar)}${/cancel/i.test(a.status) ? ' · <b>cancelled</b>' : ''}<br><small>${esc(a.title)}${a.moved ? ' · changed after booking' : ''}</small></div>`).join('')}</div></div>` : ''}
 
     <div class="sec"><h3>Log a call</h3><div class="outcomes">${OUTCOMES.map(([k, label]) => `<button data-outcome="${k}" class="${draft.outcome === k ? 'on' : ''}">${esc(label)}</button>`).join('')}</div>
@@ -527,7 +570,7 @@ function renderSheet() {
       <p class="note">A date puts it in that morning’s calendar reminder. Add a time to get its own calendar alert.</p></div>
     <div class="sec"><h3>Temperature</h3><div class="seg">${tempBtn('hot', 'Hot')}${tempBtn('warm', 'Warm')}${tempBtn('cold', 'Cold')}${tempBtn('dnc', 'Do not contact')}${tempBtn('', 'Not set')}</div>
       ${l.autoTemp && !l.temp ? `<p class="note">GHL lead score says ${esc(l.autoTemp)}.</p>` : ''}</div>
-    <div class="sec"><h3>Bucket</h3><select class="field" id="cat"><option value="">Automatic (${esc(CAT_LABEL[l.autoCategory])})</option>${CATS.map(([k, label]) => `<option value="${k}" ${cat === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div>
+    <div class="sec"><h3>Bucket</h3><select class="field" id="cat"><option value="">Automatic (${esc(catLabel(l.autoCategory, listOf(l)))})</option>${CATS.map(([k]) => `<option value="${k}" ${cat === k ? 'selected' : ''}>${esc(catLabel(k, listOf(l)))}</option>`).join('')}</select></div>
     <button class="save" id="save">Save</button>
     ${(l.log || []).length ? `<div class="sec"><h3>History</h3><div class="log">${l.log.map(e => `<div><b>${esc(OUTCOME_LABEL[e.outcome] || (e.outcome ? e.outcome : 'Note'))}</b>${e.note ? ': ' + esc(e.note) : ''}<small>${fmtDT(e.at)}${e.by ? ' · ' + esc(e.by) : ''}</small></div>`).join('')}</div></div>` : ''}
   `;
