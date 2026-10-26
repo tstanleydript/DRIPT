@@ -350,6 +350,34 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
 
+.leads-tools { display: flex; gap: 8px; margin-bottom: 12px; }
+.leads-tools .leads-search { flex: 1; min-width: 0; margin-bottom: 0; }
+.leads-filter { position: relative; flex: none; }
+.leads-filter select {
+  height: 100%; padding: 0 26px 0 10px;
+  background: var(--card); border: 1px solid var(--border-mid);
+  border-radius: 4px; color: var(--muted-strong);
+  font-size: 13px; font-family: inherit; -webkit-appearance: none; appearance: none;
+}
+.leads-filter select:focus { outline: none; border-color: var(--accent); }
+.leads-filter.on select { border-color: var(--accent); color: var(--accent); }
+.leads-filter::after {
+  content: ''; position: absolute; right: 10px; top: 50%; margin-top: -3px; pointer-events: none;
+  border: 4px solid transparent; border-top: 5px solid var(--muted); border-bottom: 0;
+}
+.leads-filter.on::after { border-top-color: var(--accent); }
+.to-top {
+  position: fixed; z-index: 20;
+  right: max(14px, calc((100vw - 480px) / 2 + 14px));
+  bottom: calc(env(safe-area-inset-bottom) + 74px);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border-mid); color: var(--muted-strong);
+  display: grid; place-items: center; padding: 0; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.to-top.show { opacity: .92; transform: none; pointer-events: auto; }
 .leads-search {
   width: 100%; padding: 11px 12px;
   background: var(--card); border: 1px solid var(--border-mid);
@@ -849,7 +877,21 @@ button.stat-mini:active { background: var(--card-active); }
 
 <!-- LEADS LIST -->
 <div class="view" id="view-leads">
-  <input type="text" id="leads-search" class="leads-search" placeholder="Search name, address, phone, notes..." autocomplete="off" autocapitalize="none">
+  <div class="leads-tools">
+    <input type="text" id="leads-search" class="leads-search" placeholder="Search leads..." autocomplete="off" autocapitalize="none">
+    <div class="leads-filter" id="leads-filter-wrap">
+      <select id="leads-filter" aria-label="Filter by status">
+        <option value="">All</option>
+        <option>Booked</option>
+        <option>Quoted</option>
+        <option>Warm</option>
+        <option>Follow-up</option>
+        <option>Pipeline</option>
+        <option>Cold</option>
+        <option value="-">No status</option>
+      </select>
+    </div>
+  </div>
   <div class="select-bar" id="select-bar" style="display:none;">
     <span class="count" id="select-count">0 SELECTED</span>
     <div>
@@ -858,6 +900,7 @@ button.stat-mini:active { background: var(--card-active); }
     </div>
   </div>
   <div id="leads-list"></div>
+  <button type="button" class="to-top" id="to-top" aria-label="Back to top"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 </div>
 
 <!-- REWARDS -->
@@ -1021,7 +1064,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V23</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V24</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1216,7 +1259,13 @@ function newLead(overrideDateKey) {
 
 // --------- VIEW SWITCHING ---------
 const views = ['home', 'lead', 'leads', 'rewards', 'stats', 'settings', 'export', 'status'];
+let currentView = 'home';
+let leadReturn = 'home';   // where Back / Save goes from the lead form
+let leadsScrollY = 0;      // the leads list keeps its place between visits
 function showView(name) {
+  if (currentView === 'leads' && name !== 'leads') leadsScrollY = window.scrollY;
+  if (name === 'lead' && currentView !== 'lead') leadReturn = currentView === 'leads' ? 'leads' : 'home';
+  currentView = name;
   // Exit select mode when leaving leads tab
   if (name !== 'leads' && selectMode) exitSelectMode();
   views.forEach(v => document.getElementById('view-'+v).classList.remove('active'));
@@ -1237,13 +1286,14 @@ function showView(name) {
   if (name === 'export') renderExport();
   if (name === 'status') renderStatus(true);
   if (name === 'settings') loadSettingsForm();
-  window.scrollTo(0, 0);
+  window.scrollTo(0, name === 'leads' ? leadsScrollY : 0);
+  updateToTop();
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => showView(btn.dataset.view));
 });
-document.getElementById('back-btn').addEventListener('click', () => showView('home'));
+document.getElementById('back-btn').addEventListener('click', () => showView(currentView === 'lead' ? leadReturn : 'home'));
 
 document.getElementById('new-lead-btn').addEventListener('click', () => {
   editingId = null;
@@ -1834,7 +1884,7 @@ document.getElementById('save-lead').addEventListener('click', () => {
     else toast(editingId ? 'Lead updated' : 'Lead saved');
     editingId = null;
     currentLead = null;
-    showView('home');
+    showView(leadReturn);
   } catch (err) {
     if (!editingId) leads.pop();
     if (err && (err.name === 'QuotaExceededError' || String(err).toLowerCase().includes('quota'))) {
@@ -1858,6 +1908,7 @@ document.getElementById('delete-lead').addEventListener('click', () => {
 
 // --------- LEADS LIST + LONG-HOLD MULTI-SELECT ---------
 let leadsSearchTerm = '';
+let leadsStatusFilter = '';
 let pressTimer = null;
 const LONG_PRESS_MS = 500;
 
@@ -1900,7 +1951,9 @@ document.getElementById('select-delete').addEventListener('click', () => {
 function renderLeadsList() {
   const list = document.getElementById('leads-list');
   const filter = leadsSearchTerm;
+  const status = leadsStatusFilter;
   const matches = l => {
+    if (status && (status === '-' ? !!l.status : l.status !== status)) return false;
     if (!filter) return true;
     const fields = [l.name, l.address, l.phone, l.email, l.notes, l.status]
       .filter(Boolean).map(String).join(' ').toLowerCase();
@@ -1913,8 +1966,9 @@ function renderLeadsList() {
     .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
   if (today.length === 0 && older.length === 0) {
-    list.innerHTML = filter
-      ? `<div class="empty">No leads match "${escapeHTML(filter)}"</div>`
+    const what = [filter && `"${escapeHTML(filter)}"`, status && (status === '-' ? 'no status' : status)].filter(Boolean).join(' · ');
+    list.innerHTML = what
+      ? `<div class="empty">No leads match ${what}</div>`
       : '<div class="empty">No leads yet · tap + to add</div>';
     return;
   }
@@ -1925,8 +1979,8 @@ function renderLeadsList() {
     html += today.map(leadCardHTML).join('');
   }
   if (older.length) {
-    html += `<p class="section-title">${filter ? 'Matches from previous days' : 'Previous days'}</p>`;
-    html += older.slice(0, filter ? 500 : 100).map(leadCardHTML).join('');
+    html += `<p class="section-title">${filter || status ? 'Matches from previous days' : 'Previous days'}</p>`;
+    html += older.slice(0, filter || status ? 500 : 100).map(leadCardHTML).join('');
   }
   list.innerHTML = html;
 
@@ -1987,6 +2041,20 @@ document.getElementById('leads-search').addEventListener('input', e => {
   leadsSearchTerm = e.target.value.toLowerCase().trim();
   renderLeadsList();
 });
+document.getElementById('leads-filter').addEventListener('change', e => {
+  leadsStatusFilter = e.target.value;
+  document.getElementById('leads-filter-wrap').classList.toggle('on', !!leadsStatusFilter);
+  window.scrollTo(0, 0);
+  renderLeadsList();
+});
+
+// Small back-to-top arrow once the rep is well down the leads list
+function updateToTop() {
+  const show = currentView === 'leads' && window.scrollY > window.innerHeight * 1.5;
+  document.getElementById('to-top').classList.toggle('show', show);
+}
+window.addEventListener('scroll', updateToTop, { passive: true });
+document.getElementById('to-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
 function leadCardHTML(l) {
   const quote = calcQuote(l);
@@ -2025,7 +2093,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V23';
+const APP_VERSION = 'V24';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
