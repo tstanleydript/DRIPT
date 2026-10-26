@@ -199,9 +199,6 @@ textarea { min-height: 76px; resize: vertical; }
 .step .quick { margin-top: 0; }
 .quick button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .step textarea { min-height: 64px; }
-.save-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
-.save-row .save { margin-top: 0; text-transform: none; letter-spacing: 0; font-size: 15px; }
-.save.next { background: var(--text); color: var(--bg); }
 .more-d { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
 .more-d summary { padding: 14px 0; cursor: pointer; font-size: 14px; }
 .more-d[open] { padding-bottom: 14px; }
@@ -581,7 +578,9 @@ function renderGate(app) {
 // --- Lead detail -------------------------------------------------------------------------------
 let draft = {};
 
+let listY = 0; // the list goes back to where it was when a lead closes
 function openLead(key) {
+  if (!openKey) listY = window.scrollY;
   openKey = key;
   draft = {};
   renderSheet();
@@ -593,6 +592,7 @@ function closeLead() {
   document.getElementById('detail').classList.remove('open');
   document.body.style.overflow = '';
   render();
+  window.scrollTo(0, listY);
 }
 
 function renderSheet() {
@@ -644,7 +644,7 @@ function renderSheet() {
       <div class="quick">${quick.map(([label, n]) => `<button data-days="${n}" class="${next && next === addDays(today, n) ? 'on' : ''}">${label}</button>`).join('')}<button data-days="">Clear</button></div>
       <div class="when"><input type="date" id="next" value="${esc(next)}" min="${today}" aria-label="Call again on"><input type="time" id="time" value="${esc(time)}" style="max-width:130px" aria-label="At"></div>
       <textarea id="note" placeholder="Note: what was said, details to remember…">${esc(draft.note || '')}</textarea>
-      <div class="save-row"><button class="save" id="save">Save</button><button class="save next" id="save-next">Save and next lead</button></div>
+      <button class="save" id="save">Save</button>
     </div>
 
     <details class="more-d"><summary>Details, ServiceM8 jobs, history</summary>
@@ -678,15 +678,12 @@ function renderSheet() {
   document.getElementById('time').addEventListener('change', e => { keepNote(); draft.nextTime = e.target.value; });
   document.getElementById('cat').addEventListener('change', e => { keepNote(); draft.category = e.target.value; });
   document.getElementById('save').addEventListener('click', () => saveLead(l));
-  document.getElementById('save-next').addEventListener('click', () => saveLead(l, true));
 }
 
 function keepNote() { const n = document.getElementById('note'); if (n) draft.note = n.value; }
 
-async function saveLead(l, goNext) {
+async function saveLead(l) {
   keepNote();
-  const list = filtered(), i = list.findIndex(x => x.key === l.key);
-  const nextKey = goNext ? list[i + 1]?.key : null;
   const edit = { key: l.key };
   if (draft.outcome) edit.outcome = draft.outcome;
   if ((draft.note || '').trim()) edit.note = draft.note.trim();
@@ -700,7 +697,7 @@ async function saveLead(l, goNext) {
   try {
     await send(edit);
     toast('Saved');
-    if (nextKey) openLead(nextKey); else closeLead();
+    closeLead();
   } catch (err) {
     btn.disabled = false;
     toast(String(err.message || err));
