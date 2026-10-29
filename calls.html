@@ -95,6 +95,13 @@ a { color: var(--accent); }
 .row .name { font-weight: 600; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .l2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--muted); min-width: 0; white-space: nowrap; }
 .row .l2 .due { color: var(--accent); font-weight: 600; }
+.row .svc { color: var(--text); font-size: 12.5px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wants { margin: 10px 0 2px; padding: 0; list-style: none; }
+.wants li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.wants li:last-child { border-bottom: 0; }
+.wants li b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.jobnote { margin-top: 8px; font-size: 14px; color: var(--muted-2); line-height: 1.45; }
+.jobnote small { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; }
 .row .why { color: var(--muted-2); font-size: 13px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .row .val { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--gain); }
@@ -150,6 +157,13 @@ a { color: var(--accent); }
 textarea, .field { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
 textarea { min-height: 76px; resize: vertical; }
 .when { display: flex; gap: 6px; }
+.book { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.book label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.book input, .book select { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px; color: var(--text); font: inherit; color-scheme: var(--scheme); }
+.booked-box { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); font-size: 14px; line-height: 1.45; }
+.booked-box b { font-weight: 600; }
+.booked-box small { display: block; color: var(--muted-2); font-size: 12.5px; margin-top: 2px; }
+.booked-box.err { border-color: #d92d20; }
 .when input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px; color-scheme: var(--scheme); }
 .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .quick button { background: var(--card-2); border: 1px solid var(--line); border-radius: 14px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; color: var(--muted-2); }
@@ -161,7 +175,7 @@ textarea { min-height: 76px; resize: vertical; }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%); background: var(--card-2); border: 1px solid var(--line); color: var(--text); padding: 10px 16px; border-radius: 20px; font-size: 14px; z-index: 30; display: none; }
 
 /* Lists & proposal views */
-.lists { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; }
+.lists { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 14px; }
 .lists button { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 9px 8px; cursor: pointer; font-size: 13.5px; color: var(--muted-2); }
 .lists button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .lists button b { margin-left: 4px; color: var(--text); }
@@ -231,6 +245,11 @@ const CAT_LABEL = Object.fromEntries(CATS);
 // The same buckets read differently on My proposals.
 const MINE_LABEL = { 'no-followup': 'Waiting on them', lost: 'Said no / unsuccessful', upcoming: 'Accepted, booked', done: 'Accepted, done' };
 const listOf = l => l.list || 'tom';
+// Same rule as isMobile() in phone.ts. Leads with no mobile go on the Email list instead.
+const nat = p => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('61') && d.length === 11) d = '0' + d.slice(2); return d; };
+const hasMobile = l => /^04\d{8}$/.test(nat(l.phone));
+const inList = (l, list) => list === 'email' ? !hasMobile(l) : listOf(l) === list && hasMobile(l);
+const rateOf = l => listOf(l) === 'mine' ? (data.myRate || 20) : (data.rate || 7);
 const catLabel = (k, list) => (list === 'mine' && MINE_LABEL[k]) || CAT_LABEL[k];
 const OUTCOMES = [
   ['no-answer', 'No answer / left message'], ['spoke', 'Spoke, still thinking'], ['quoted', 'Sent / re-sent the quote'],
@@ -238,7 +257,7 @@ const OUTCOMES = [
   ['dnc', 'Do not contact'], ['note', 'Note only'],
 ];
 const OUTCOME_LABEL = Object.fromEntries(OUTCOMES);
-const MAIN_OUTCOMES = [['no-answer', 'No answer', 'call again in 2 days'], ['spoke', 'Spoke, still thinking', 'pick when below'], ['booked', 'Booked it', 'moves to booked'], ['not-interested', 'Not interested', 'off the list']];
+const MAIN_OUTCOMES = [['no-answer', 'No answer', 'call again in 2 days'], ['spoke', 'Spoke, still thinking', 'pick when below'], ['booked', 'Booked it', 'pick the day below'], ['not-interested', 'Not interested', 'off the list']];
 const MORE_OUTCOMES = [['quoted', 'Sent / re-sent the quote'], ['not-ready', 'Not ready yet, call later'], ['dnc', 'Do not contact'], ['note', 'Note only']];
 
 const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
@@ -258,7 +277,7 @@ function toast(msg) { const t = document.getElementById('toast'); t.textContent 
 let data = load(STORE.data, null);
 let outbox = load(STORE.outbox, []);
 const view = Object.assign({ list: 'tom', bucket: 'list', q: '', temp: '', from: '', to: '', min: '', max: '', sort: 'score', filters: false }, load(STORE.view, {}));
-{ const q = new URLSearchParams(location.search).get('list'); if (q === 'mine' || q === 'tom') { view.list = q; view.bucket = 'list'; } } // calls.html?list=mine opens My proposals
+{ const q = new URLSearchParams(location.search).get('list'); if (q === 'mine' || q === 'tom' || q === 'email') { view.list = q; view.bucket = 'list'; } } // calls.html?list=mine opens My proposals
 let shown = 60;
 let openKey = null;
 
@@ -357,6 +376,7 @@ function applyLocal(e) {
   const l = data.leads.find(x => x.key === e.key);
   if (!l) return;
   const today = todayKey();
+  if (e.booking && !l.booking) l.booking = { ...e.booking, status: 'PENDING', error: null, jobNumber: null, inGhl: false, bookedOn: new Date(e.at).toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' }), appLeadId: null };
   if (e.temp !== undefined) l.temp = e.temp || null;
   if (e.nextCall !== undefined) l.nextCall = e.nextCall || null;
   if (e.nextTime !== undefined) l.nextTime = e.nextTime || null;
@@ -413,9 +433,9 @@ function totals(list) {
 }
 
 // --- Filtering -----------------------------------------------------------------------------------
-const leads = () => data.leads.filter(l => listOf(l) === view.list);
+const leads = () => data.leads.filter(l => inList(l, view.list));
 const BUCKETS = () => [
-  ['list', 'Call list', l => l.onList],
+  ['list', view.list === 'email' ? 'To email' : 'Call list', l => l.onList],
   ['due', 'Callbacks due', l => l.due && tempOf(l) !== 'dnc'],
   ['later', 'Postponed', l => l.nextCall && l.nextCall > todayKey() && tempOf(l) !== 'dnc'],
   ...(view.list === 'tom' ? [['viewed', 'Opened / viewed quote', l => !!(l.proposal && (l.proposal.views || l.proposal.emailOpened))]] : []),
@@ -430,7 +450,7 @@ function filtered() {
   const q = view.q.trim().toLowerCase();
   const min = Number(view.min) || 0, max = Number(view.max) || Infinity;
   let list = leads().filter(b[2]).filter(l => {
-    if (q && ![l.name, l.phone, l.email, l.address, l.why, (l.services || []).join(' '), (l.log || []).map(e => e.note).join(' ')].join(' ').toLowerCase().includes(q)) return false;
+    if (q && ![l.name, l.phone, l.email, l.address, l.why, (l.services || []).join(' '), (l.wants || []).map(w => w.name).join(' '), l.jobNote, (l.log || []).map(e => e.note).join(' ')].join(' ').toLowerCase().includes(q)) return false;
     if (view.temp && (view.temp === 'none' ? tempOf(l) : tempOf(l) !== view.temp)) return false;
     if (view.from && l.enquired < view.from) return false;
     if (view.to && l.enquired > view.to) return false;
@@ -454,7 +474,7 @@ function render() {
   if (!LOCAL && !load(STORE.code, '')) return renderGate(app);
   const back = LOCAL ? '<a href="/">‹ Review</a>' : '<a href="./">‹ App</a>';
   if (!data) { app.innerHTML = `<div class="top">${back}<h1>Call list</h1></div><div class="empty" style="margin-top:20px">Loading…</div>`; return; }
-  const mine = view.list === 'mine';
+  const mine = view.list === 'mine', email = view.list === 'email';
   const all = leads();
   const t = totals(all);
   const rate = mine ? (data.myRate || 20) : (data.rate || 7);
@@ -462,26 +482,31 @@ function render() {
   const list = filtered();
   // Empty buckets are hidden on My proposals (most never apply there).
   const counts = BUCKETS().map(([k, label, fn]) => [k, label, all.filter(fn).length]).filter(([k, , n]) => !mine || n || k === view.bucket || ['list', 'due', 'later', 'all'].includes(k));
-  const nTom = data.leads.filter(l => listOf(l) === 'tom').length, nMine = data.leads.length - nTom;
+  const nTom = data.leads.filter(l => inList(l, 'tom')).length, nMine = data.leads.filter(l => inList(l, 'mine')).length, nEmail = data.leads.filter(l => inList(l, 'email')).length;
+  // The Email list mixes Tom's leads and your quotes, so each lead earns at its own rate.
+  const openAll = all.filter(l => OPEN.has(l.category) && tempOf(l) !== 'dnc');
+  const commOf = arr => arr.reduce((t, l) => t + commission(l.value || 0, rateOf(l)), 0);
   const owner = String(data.owner || 'Tom').split(' ')[0];
   const stale = Date.now() - Date.parse(data.generatedAt) > 6 * 3600000;
   app.innerHTML = `
-    <div class="top">${back}<h1>Call list<small>${mine ? 'Your quotes they opened or viewed' : esc(data.owner) + '’s leads'} · ${all.length}</small></h1><button id="reload">↻</button></div>
+    <div class="top">${back}<h1>Call list<small>${email ? 'No mobile: follow up by email' : mine ? 'Your quotes they opened or viewed' : esc(data.owner) + '’s leads'} · ${all.length}</small></h1><button id="reload">↻</button></div>
     ${stale ? `<div class="warn">This list is from ${fmtDT(data.generatedAt)}. The office computer updates it every 2 hours while it’s on.</div>` : ''}
-    <div class="lists"><button data-list="tom" class="${mine ? '' : 'on'}">${esc(owner)}’s leads<b>${nTom}</b></button><button data-list="mine" class="${mine ? 'on' : ''}">My proposals<b>${nMine}</b></button></div>
+    <div class="lists"><button data-list="tom" class="${view.list === 'tom' ? 'on' : ''}">${esc(owner)}’s leads<b>${nTom}</b></button><button data-list="mine" class="${mine ? 'on' : ''}">My proposals<b>${nMine}</b></button><button data-list="email" class="${email ? 'on' : ''}">Email list<b>${nEmail}</b></button></div>
     <div class="money">
       <div class="tile"><b class="gain">${money(potential)}</b><span>Potential revenue in ${t.open} open ${mine ? 'quotes' : 'leads'}<br>${money(t.knownValue)} quoted${t.estValue ? ` + ${money(t.estValue)} est. for ${t.open - t.openKnown} with no price (median ${money(t.median)})` : ''}</span></div>
-      ${mine
+      ${email
+        ? `<div class="tile accent"><b class="gain">${money(commOf(openAll))}</b><span>Commission on them (Tom’s leads at ${data.rate || 7}%, your quotes at ${data.myRate || 20}%, ex GST)</span></div>`
+        : mine
         ? `<div class="tile accent"><b class="gain">${money(commission(potential, rate))}</b><span>Your commission on them at ${rate}% (ex GST)</span></div>`
         : `<div class="tile accent"><b id="comm" class="gain">${money(commission(potential, rate))}</b><span>Potential commission at <span id="rate-label">${rate}</span>% (ex GST)</span>
         <div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div></div>`}
-      <div class="tile"><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} ${mine ? 'accepted' : 'booked'}, coming up · <span id="comm-up">${money(commission(t.upcomingValue, rate))}</span></span></div>
+      <div class="tile"><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} ${mine ? 'accepted' : 'booked'}, coming up · <span id="comm-up">${money(email ? commOf(all.filter(l => l.category === 'upcoming')) : commission(t.upcomingValue, rate))}</span></span></div>
       <div class="tile"><b class="plain">${money(t.doneValue)}</b><span>${t.done} jobs done from these ${mine ? 'quotes' : 'leads'}</span></div>
     </div>
     <div class="chips">${counts.map(([k, label, n]) => `<button class="chip ${view.bucket === k ? 'on' : ''}" data-bucket="${k}">${esc(label)}<b>${n}</b></button>`).join('')}</div>
     <button class="toggle-filters" id="toggle-filters">${view.filters ? '▾ Hide filters' : '▸ Filter & sort'}${activeFilters() ? ` · ${activeFilters()} on` : ''}</button>
     ${view.filters ? filtersHTML() : ''}
-    <div class="summary">${list.length} lead${list.length === 1 ? '' : 's'} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))} quoted${view.bucket === 'list' ? (mine ? ' · opened or viewed, most interested first' : ' · open leads not postponed, hottest first') : ''}</div>
+    <div class="summary">${list.length} lead${list.length === 1 ? '' : 's'} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))} quoted${view.bucket === 'list' ? (email ? ' · open leads with no mobile, hottest first' : mine ? ' · opened or viewed, most interested first' : ' · open leads not postponed, hottest first') : ''}</div>
     <div id="rows">${list.length ? list.slice(0, shown).map(rowHTML).join('') : '<div class="empty">Nothing here</div>'}</div>
     ${list.length > shown ? `<button class="more" id="more">Show more (${list.length - shown} left)</button>` : ''}
     <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Potential = open ${mine ? 'quotes' : 'leads'} (not booked, done or do-not-contact). Commission = revenue ÷ 1.1 × rate.${mine || view.bucket === 'viewed' ? ` 👁 Proposal views come from ServiceM8${data.viewsSince ? ' since ' + fmt(data.viewsSince) : ' (switching on)'}; before that, ✉ shows when the quote email was opened. An email “opened” the moment it arrived is usually the email app, not the client.` : ''}</p>`;
@@ -527,22 +552,52 @@ function signalsHTML(l) {
 const ARROW = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
 /** [what to do, why]: the agent's suggestion on My proposals; on Tom's list, the callback or where it's at. */
 function nextStep(l) {
-  if (l.suggestion) { const [a, ...b] = l.suggestion.replace(/^📞\s*/, '').split(':'); return [a.trim(), b.join(':').trim()]; }
-  if (l.nextCall) return [l.nextCall <= todayKey() ? 'Call today' : 'Call ' + fmt(l.nextCall), l.nextTime ? 'at ' + l.nextTime : 'callback set'];
-  if (tempOf(l) === 'dnc') return ['No call', 'do not contact'];
-  return l.onList ? ['Call', catLabel(l.category, listOf(l))] : ['No call needed', catLabel(l.category, listOf(l))];
+  const verb = hasMobile(l) ? 'Call' : 'Email';
+  if (l.suggestion) { const [a, ...b] = l.suggestion.replace(/^📞\s*/, '').replace(/^Call\b/, verb).split(':'); return [a.trim(), b.join(':').trim()]; }
+  if (l.nextCall) return [l.nextCall <= todayKey() ? verb + ' today' : verb + ' ' + fmt(l.nextCall), l.nextTime ? 'at ' + l.nextTime : 'follow-up set'];
+  if (tempOf(l) === 'dnc') return ['No contact', 'do not contact'];
+  return l.onList ? [verb, catLabel(l.category, listOf(l))] : ['Nothing needed', catLabel(l.category, listOf(l))];
 }
 const dayOnly = d => fmt(d).replace(/ \d{2}$/, ''); // "21 Oct", no year
 /** Step 1's line: where it's at, without the suggestion already shown above it. */
 const whereOf = l => { const w = (l.why || '').replace(/^📞[^·]*·\s*/, ''); return w.charAt(0).toUpperCase() + w.slice(1); };
 const reasonOf = l => (l.suggestion || l.why || '').replace(/^📞\s*/, '');
 
+/** One short line of what they want: the quote's line items, else the job note, else the GHL service tags. */
+function servicesLine(l) {
+  const w = (l.wants || []).filter(x => x.amount > 0);
+  if (w.length) return w.map(x => x.name + ' ' + money(x.amount)).join(' · ');
+  return l.jobNote || (l.services || []).join(', ');
+}
+function wantsHTML(l) {
+  const w = l.wants || [];
+  const tags = (l.services || []).join(', ');
+  if (!w.length && !l.jobNote && !tags) return '<p class="note">No services on file: ask what they’re after.</p>';
+  return (w.length ? `<ul class="wants">${w.map(x => `<li><span>${esc(x.name)}</span><b>${x.amount ? money(x.amount) : 'incl.'}</b></li>`).join('')}</ul>` : '')
+    + (l.jobNote ? `<div class="jobnote"><small>Job notes</small>${esc(l.jobNote)}</div>` : '')
+    + (!w.length && !l.jobNote && tags ? `<div class="jobnote"><small>Asked about</small>${esc(tags)}</div>` : '');
+}
+
+const LENGTHS = [[60, '1 hour'], [90, '1.5 hours'], [120, '2 hours'], [180, '3 hours'], [240, '4 hours (half day)'], [300, '5 hours'], [360, '6 hours'], [510, 'Full day']];
+const bookWhen = b => new Date(b.start).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' });
+function bookingHTML(l) {
+  const b = l.booking;
+  if (!b) return '';
+  const len = (LENGTHS.find(x => x[0] === b.durationMin) || [0, (b.durationMin / 60) + ' hours'])[1];
+  const state = b.status === 'DONE'
+    ? `In ServiceM8${b.jobNumber ? ' #' + esc(b.jobNumber) : ''} as a Work Order and on the GHL Draft calendar. Confirmation email: office to send.`
+    : b.status === 'ERROR' ? 'Problem: ' + esc(b.error || 'unknown') + '. The agent tries again every 30 minutes.'
+    : 'Being put in ServiceM8 and GHL (within about 5 minutes).';
+  return `<div class="booked-box ${b.status === 'ERROR' ? 'err' : ''}"><b>Booked ${esc(bookWhen(b))}</b> · ${esc(len)}${b.price ? ' · ' + money(b.price) : ''}<small>${state}</small></div>`;
+}
+
 function rowHTML(l) {
-  const next = l.nextCall ? (l.nextCall <= todayKey() ? '<span class="due">Call today</span>' : `<span>Call ${fmt(l.nextCall)}${l.nextTime ? ' ' + l.nextTime : ''}</span>`) : '';
+  const next = l.booking ? `<span>Booked ${fmt(l.booking.start.slice(0, 10))}</span>` : l.nextCall ? (l.nextCall <= todayKey() ? '<span class="due">Call today</span>' : `<span>Call ${fmt(l.nextCall)}${l.nextTime ? ' ' + l.nextTime : ''}</span>`) : '';
   return `<div class="row" data-key="${esc(l.key)}">
     <div style="min-width:0">
       <div class="l1"><span class="name">${esc(l.name)}</span>${tempPill(l)}</div>
       <div class="l2">${heatHTML(l.score)}<span>${esc(catLabel(l.category, listOf(l)))}</span>${next}${l.repeatDue ? '<span>Repeat due</span>' : ''}</div>
+      ${servicesLine(l) ? `<div class="svc">${esc(servicesLine(l))}</div>` : ''}
       <div class="why">${esc(reasonOf(l))}</div>
     </div>
     <div class="side"><span class="val ${l.value ? 'gain' : ''}">${money(l.value)}</span>${signalsHTML(l)}</div>
@@ -639,26 +694,42 @@ function renderSheet() {
       <div class="s next">${ARROW(22)}<b>${esc(ns[0])}</b><small>${esc(ns[1])}</small></div>
     </div>
 
-    <div class="step">${step(1, 'Before you call')}
-      <div class="where">${esc(whereOf(l))}</div>${l.stage ? `<p class="note">GHL stage: ${esc(l.stage)}</p>` : ''}
+    <div class="step">${step(1, hasMobile(l) ? 'Before you call' : 'Before you email')}
+      ${bookingHTML(l)}
+      <div class="where">${esc(whereOf(l))}</div>
+      ${wantsHTML(l)}${l.stage ? `<p class="note">GHL stage: ${esc(l.stage)}</p>` : ''}
       ${l.lastReply ? `<div class="reply">“${esc(l.lastReply.text.slice(0, 600))}${l.lastReply.text.length > 600 ? '…' : ''}”<small>Their last email · ${fmtDT(l.lastReply.at)}</small></div>` : ''}
       ${l.lastCall ? `<p class="note">Last call: ${esc(OUTCOME_LABEL[l.lastCall.outcome] || 'Note')}${l.lastCall.note ? ', “' + esc(l.lastCall.note) + '”' : ''} · ${ago(l.lastCall.at)}</p>` : ''}
     </div>
 
-    <div class="step">${step(2, 'Call', l.phone ? `<span class="step-r">${esc(l.phone)}</span>` : '')}
+    ${hasMobile(l) ? `<div class="step">${step(2, 'Call', `<span class="step-r">${esc(l.phone)}</span>`)}
       <div class="actions">
-        <a class="call ${tel ? '' : 'off'}" href="tel:${esc(tel)}">Call</a>
-        <a class="${tel ? '' : 'off'}" href="sms:${esc(tel)}">Text</a>
+        <a class="call" href="tel:${esc(tel)}">Call</a>
+        <a href="sms:${esc(tel)}">Text</a>
         <a class="${l.email ? '' : 'off'}" href="mailto:${esc(l.email)}">Email</a>
-      </div>
+      </div>` : `<div class="step">${step(2, 'Email', `<span class="step-r">${esc(l.email || 'no email on file')}</span>`)}
+      <div class="actions">
+        <a class="call ${l.email ? '' : 'off'}" href="mailto:${esc(l.email)}">Email</a>
+        <a class="${tel ? '' : 'off'}" href="tel:${esc(tel)}">${tel ? 'Call landline' : 'No phone'}</a>
+      </div>`}
     </div>
 
     <div class="step">${step(3, 'What happened?')}
-      <div class="outcomes">${MAIN_OUTCOMES.map(outcomeBtn).join('')}</div>
+      <div class="outcomes">${(hasMobile(l) ? MAIN_OUTCOMES : MAIN_OUTCOMES.map(([k, a, b]) => k === 'no-answer' ? [k, 'No reply', 'email again in 2 days'] : [k, a, b])).map(outcomeBtn).join('')}</div>
       ${moreOpen ? `<div class="outcomes more-o">${MORE_OUTCOMES.map(outcomeBtn).join('')}</div>` : `<button class="linkish" id="more-o">More: re-sent quote, not ready yet, do not contact, note only</button>`}
-      <div class="sub">Call again</div>
+      ${draft.outcome === 'booked' ? (l.booking
+        ? '<p class="note">Already booked (above). To change the date, move it in ServiceM8 and GHL.</p>'
+        : `<div class="sub">Booking</div>
+      <div class="book">
+        <div><label for="b-date">Day</label><input type="date" id="b-date" value="${esc(draft.bDate || '')}" min="${today}"></div>
+        <div><label for="b-time">Start</label><input type="time" id="b-time" value="${esc(draft.bTime || '07:30')}" step="900"></div>
+        <div><label for="b-len">Length</label><select id="b-len">${LENGTHS.map(([m, t]) => `<option value="${m}" ${Number(draft.bLen || 240) === m ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div><label for="b-price">Price $ (inc GST)</label><input type="number" inputmode="numeric" id="b-price" value="${esc(draft.bPrice != null ? draft.bPrice : (l.value || ''))}"></div>
+      </div>
+      <p class="note">The agent makes it a Work Order in ServiceM8 with the visit, and puts it on the GHL Draft calendar as confirmed. No confirmation email goes out: the office sends it.</p>`)
+      : `<div class="sub">${hasMobile(l) ? 'Call again' : 'Email again'}</div>
       <div class="quick">${quick.map(([label, n]) => `<button data-days="${n}" class="${next && next === addDays(today, n) ? 'on' : ''}">${label}</button>`).join('')}<button data-days="">Clear</button></div>
-      <div class="when"><input type="date" id="next" value="${esc(next)}" min="${today}" aria-label="Call again on"><input type="time" id="time" value="${esc(time)}" style="max-width:130px" aria-label="At"></div>
+      <div class="when"><input type="date" id="next" value="${esc(next)}" min="${today}" aria-label="Call again on"><input type="time" id="time" value="${esc(time)}" style="max-width:130px" aria-label="At"></div>`}
       <textarea id="note" placeholder="Note: what was said, details to remember…">${esc(draft.note || '')}</textarea>
       <button class="save" id="save">Save</button>
     </div>
@@ -690,8 +761,10 @@ function renderSheet() {
   sheet.querySelectorAll('[data-temp]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.temp = b.dataset.temp; renderSheet(); }));
   sheet.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { keepNote(); draft.nextCall = b.dataset.days ? addDays(today, Number(b.dataset.days)) : ''; if (!b.dataset.days) draft.nextTime = ''; renderSheet(); }));
   document.getElementById('more-o')?.addEventListener('click', () => { keepNote(); draft.more = true; renderSheet(); });
-  document.getElementById('next').addEventListener('change', e => { keepNote(); draft.nextCall = e.target.value; });
-  document.getElementById('time').addEventListener('change', e => { keepNote(); draft.nextTime = e.target.value; });
+  document.getElementById('next')?.addEventListener('change', e => { keepNote(); draft.nextCall = e.target.value; });
+  document.getElementById('time')?.addEventListener('change', e => { keepNote(); draft.nextTime = e.target.value; });
+  [['b-date', 'bDate'], ['b-time', 'bTime'], ['b-len', 'bLen'], ['b-price', 'bPrice']].forEach(([id, k]) =>
+    document.getElementById(id)?.addEventListener('change', e => { draft[k] = e.target.value; }));
   document.getElementById('cat').addEventListener('change', e => { keepNote(); draft.category = e.target.value; });
   document.getElementById('save').addEventListener('click', () => saveLead(l));
 }
@@ -702,6 +775,11 @@ async function saveLead(l) {
   keepNote();
   const edit = { key: l.key };
   if (draft.outcome) edit.outcome = draft.outcome;
+  if (draft.outcome === 'booked' && !l.booking) {
+    const date = draft.bDate || '', time = draft.bTime || '07:30';
+    if (!date) return toast('Pick the day it’s booked for');
+    edit.booking = { start: date + 'T' + time + ':00+10:00', durationMin: Number(draft.bLen || 240), price: Number(draft.bPrice != null ? draft.bPrice : l.value) || null };
+  }
   if ((draft.note || '').trim()) edit.note = draft.note.trim();
   if (draft.temp !== undefined && draft.temp !== (l.temp || '')) edit.temp = draft.temp;
   if (draft.nextCall !== undefined && draft.nextCall !== (l.nextCall || '')) edit.nextCall = draft.nextCall;

@@ -577,6 +577,7 @@ button.stat-mini:active { background: var(--card-active); }
 .stat-mini .pct { font-size: 10px; color: var(--muted-strong); margin-top: 2px; line-height: 1; letter-spacing: 0.5px; }
 
 /* Commission rows */
+.call-sales { margin: -2px 2px 10px; font-size: 12px; color: var(--muted); }
 .commission-row {
   display: flex; justify-content: space-between;
   padding: 11px 0; border-bottom: 1px solid var(--border-mid);
@@ -958,6 +959,7 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-value">$0</div><div class="lbl">Sold $</div></div>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
+  <p class="call-sales" id="k-call" hidden></p>
   <div class="mini-grid-2">
     <button class="stat-mini" id="edit-hours-btn"><div class="val" id="k-hours">0h</div><div class="lbl">Hours · tap to edit</div></button>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-rate">$0</div><div class="lbl">Per hour</div></div>
@@ -975,6 +977,7 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-value">$0</div><div class="lbl">Sold $</div></div>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
+  <p class="call-sales" id="m-call" hidden></p>
   <div class="mini-grid-2">
     <div class="stat-mini"><div class="val" id="m-hours">0h</div><div class="lbl">Hours</div></div>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-rate">$0</div><div class="lbl">Per hour</div></div>
@@ -1064,7 +1067,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V24</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V25</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -2093,7 +2096,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V24';
+const APP_VERSION = 'V25';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2122,7 +2125,10 @@ function leadHistory(days) {
   const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
   return leads.filter(l => (l.dateKey || '') >= cutoff).map(l => ({
     id: l.id, name: l.name || '', address: l.address || '', phone: l.phone || '', email: l.email || '',
-    status: l.status || '', total: calcQuote(l), dateKey: l.dateKey || '', booking: l.booking || '', bookingStart: l.bookingStart || ''
+    status: l.status || '', total: calcQuote(l), dateKey: l.dateKey || '', booking: l.booking || '', bookingStart: l.bookingStart || '',
+    // For the office's call list: what they wanted and the rep's notes.
+    services: Object.entries(l.services || {}).filter(([, d]) => d).map(([k, d]) => (SERVICE_LABELS[k] || k) + (Number(d.price) ? ' $' + Math.round(Number(d.price)) : '')).join(' · '),
+    notes: String(l.notes || '').slice(0, 500)
   }));
 }
 
@@ -2555,13 +2561,32 @@ function dateKeyFor(year, month, day) {
   return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 
-function statsForDay(key) {
+// Jobs booked from the call list (manager phones only), read from the call list's saved copy.
+// Each counts as a sale on the day it was booked: your own quotes at your commission, Tom's leads
+// at the call list's rate. An app lead booked that way isn't counted again on its knock day.
+function callSales() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
+  if (!d || !Array.isArray(d.leads)) return [];
+  return d.leads.filter(l => l.booking && l.booking.bookedOn).map(l => ({
+    day: l.booking.bookedOn, value: Number(l.booking.price || l.value || 0), name: l.name, appLeadId: l.booking.appLeadId || null,
+    rate: l.list === 'mine' ? Number(settings.commission || 0) : Number(d.rate || 7)
+  }));
+}
+function salesStats(doorLeads, calls, allCalls) {
+  const viaCalls = new Set(allCalls.map(c => c.appLeadId).filter(Boolean));
+  const sold = doorLeads.filter(l => l.status === 'Booked' && !viaCalls.has(l.id));
+  const doorValue = sold.reduce((s, l) => s + calcQuote(l), 0);
+  const callValue = calls.reduce((s, c) => s + c.value, 0);
+  const earned = doorValue * (settings.commission || 0) / 100 + calls.reduce((s, c) => s + c.value * c.rate / 100, 0);
+  return { booked: sold.length, value: doorValue + callValue, earned: Math.round(earned), callBooked: calls.length, callValue };
+}
+
+function statsForDay(key, calls = callSales()) {
   const k = kpi[key] || { doors: 0, convos: 0 };
   const dayLeads = leads.filter(l => l.dateKey === key);
   const quotes = dayLeads.filter(l => calcQuote(l) > 0).length;
-  const booked = dayLeads.filter(l => l.status === 'Booked').length;
-  const value = dayLeads.filter(l => l.status === 'Booked').reduce((s,l) => s + calcQuote(l), 0);
-  return { doors: k.doors, convos: k.convos, quotes, booked, value };
+  return { doors: k.doors, convos: k.convos, quotes, ...salesStats(dayLeads, calls.filter(c => c.day === key), calls) };
 }
 
 function statsForMonth(year, month) {
@@ -2575,9 +2600,8 @@ function statsForMonth(year, month) {
   }
   const monthLeads = leads.filter(l => (l.dateKey || '').startsWith(prefix));
   const quotes = monthLeads.filter(l => calcQuote(l) > 0).length;
-  const booked = monthLeads.filter(l => l.status === 'Booked').length;
-  const value = monthLeads.filter(l => l.status === 'Booked').reduce((s, l) => s + calcQuote(l), 0);
-  return { doors, convos, quotes, booked, value };
+  const calls = callSales();
+  return { doors, convos, quotes, ...salesStats(monthLeads, calls.filter(c => c.day.startsWith(prefix)), calls) };
 }
 
 function hoursForMonth(year, month) {
@@ -2606,6 +2630,7 @@ function renderCalendar() {
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const daysInPrev = new Date(calYear, calMonth, 0).getDate();
   const todayK = todayKey();
+  const calls = callSales();
   let cells = [];
   for (let i = startOffset - 1; i >= 0; i--) {
     const d = daysInPrev - i;
@@ -2627,7 +2652,7 @@ function renderCalendar() {
     if (c.other) classes.push('other-month');
     if (c.key === todayK) classes.push('today');
     if (c.key === selectedDateKey) classes.push('selected');
-    const stats = statsForDay(c.key);
+    const stats = statsForDay(c.key, calls);
     const valueHtml = (stats.value > 0 && !c.other) ? `<div class="cal-day-val">+$${stats.value}</div>` : '';
     return `<div class="${classes.join(' ')}" data-key="${c.key}">
       <div class="cal-day-num">${c.day}</div>${valueHtml}</div>`;
@@ -2644,7 +2669,7 @@ function renderCalendar() {
   let monthTotal = 0, monthHoursMs = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const dk = dateKeyFor(calYear, calMonth, d);
-    monthTotal += statsForDay(dk).value;
+    monthTotal += statsForDay(dk, calls).value;
     monthHoursMs += hoursForDay(dk);
   }
   const totalEl = document.getElementById('cal-total');
@@ -2672,7 +2697,8 @@ function renderStatsOnly() {
   document.getElementById('k-quotes').textContent = stats.quotes;
   document.getElementById('k-booked').textContent = stats.booked;
   document.getElementById('k-value').textContent = '$' + stats.value.toLocaleString();
-  const earnedDay = Math.round(stats.value * (settings.commission || 0) / 100);
+  const earnedDay = stats.earned;
+  callLine('k-call', stats);
   document.getElementById('k-earned').textContent = '$' + earnedDay.toLocaleString();
   const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) + '%' : '–';
   document.getElementById('k-convos-pct').textContent = pct(stats.convos, stats.doors) + ' of doors';
@@ -2691,7 +2717,8 @@ function renderStatsOnly() {
   document.getElementById('m-quotes').textContent = mStats.quotes;
   document.getElementById('m-booked').textContent = mStats.booked;
   document.getElementById('m-value').textContent = '$' + mStats.value.toLocaleString();
-  const earnedMonth = Math.round(mStats.value * (settings.commission || 0) / 100);
+  const earnedMonth = mStats.earned;
+  callLine('m-call', mStats);
   document.getElementById('m-earned').textContent = '$' + earnedMonth.toLocaleString();
   document.getElementById('m-convos-pct').textContent = pct(mStats.convos, mStats.doors) + ' of doors';
   document.getElementById('m-quotes-pct').textContent = pct(mStats.quotes, mStats.convos) + ' of convos';
@@ -2702,6 +2729,13 @@ function renderStatsOnly() {
   const monthRate = (monthHoursDec > 0 && earnedMonth > 0) ? Math.round(earnedMonth / monthHoursDec) : 0;
   document.getElementById('m-rate').textContent = monthRate > 0 ? '$' + monthRate.toLocaleString() : '–';
   renderFunnel(mStats, 'funnel-month');
+}
+
+function callLine(id, s) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.hidden = !s.callBooked;
+  el.textContent = s.callBooked ? `Includes ${s.callBooked} booked from the call list · $${s.callValue.toLocaleString()}` : '';
 }
 
 function renderFunnel(s, containerId) {
@@ -2727,7 +2761,24 @@ function renderFunnel(s, containerId) {
   }).join('');
 }
 
+function refreshCallSalesQuietly() {
+  let code = '', d = null;
+  try { code = localStorage.getItem('dript_calls_code') || ''; d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
+  if (!code) return;
+  try { code = JSON.parse(code); } catch (e) {}
+  if (d && d.generatedAt && Date.now() - Date.parse(d.generatedAt) < 30 * 60000) return;
+  fetch(AGENT_URL, { method: 'POST', body: JSON.stringify({ action: 'callList', code }) })
+    .then(r => r.json())
+    .then(out => {
+      if (!out.ok || !out.data) return;
+      try { localStorage.setItem('dript_calls_data', JSON.stringify(out.data)); } catch (e) { return; }
+      if (document.getElementById('view-stats').classList.contains('active')) { renderCalendar(); renderStatsOnly(); }
+    })
+    .catch(() => {});
+}
+
 function renderStats() {
+  refreshCallSalesQuietly();
   const now = new Date();
   if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
   if (!selectedDateKey) selectedDateKey = todayKey();
