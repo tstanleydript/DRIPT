@@ -304,30 +304,46 @@ async function refresh(quiet) {
 async function send(edit) {
   edit.id = edit.id || ('e' + Date.now() + Math.random().toString(36).slice(2, 7));
   edit.at = edit.at || new Date().toISOString();
+  // The change shows straight away; sending happens in the background so Save closes at once.
+  applyLocal(edit);
   if (LOCAL) {
     const url = edit.rate != null ? '/calls/rate' : '/calls/update';
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edit) });
-    if (!res.ok) throw new Error('Not saved: ' + (await res.text()));
-    const out = await res.json();
-    if (out.lead) replaceLead(out.lead); else applyLocal(edit);
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edit) })
+      .then(async res => {
+        if (!res.ok) throw new Error('Not saved: ' + (await res.text()));
+        const out = await res.json();
+        if (out.lead) { replaceLead(out.lead); if (!openKey) render(); }
+      })
+      .catch(err => { toast(String(err.message || err)); refresh(true); });
     return;
   }
-  applyLocal(edit);
   outbox.push(edit);
   save(STORE.outbox, outbox);
   save(STORE.data, data);
-  await flush();
+  flush();
 }
 
-async function flush() {
-  if (LOCAL || !outbox.length) return;
-  const left = [];
-  for (const e of outbox) {
-    try { await script({ action: 'callUpdate', edit: e }); } catch (err) { left.push(e); }
+let flushing = null;
+function flush() {
+  if (LOCAL || !outbox.length) return Promise.resolve();
+  if (!flushing) flushing = flushOutbox().finally(() => { flushing = null; });
+  return flushing;
+}
+async function flushOutbox() {
+  while (outbox.length) {
+    const batch = outbox.slice();
+    const failed = [];
+    for (const e of batch) {
+      try { await script({ action: 'callUpdate', edit: e }); } catch (err) { failed.push(e); }
+    }
+    // Keep anything saved while this batch was sending.
+    outbox = failed.concat(outbox.filter(e => !batch.includes(e)));
+    save(STORE.outbox, outbox);
+    if (failed.length) {
+      toast(failed.length + ' change' + (failed.length === 1 ? '' : 's') + ' saved on this phone, will send when online');
+      return;
+    }
   }
-  outbox = left;
-  save(STORE.outbox, outbox);
-  if (left.length) toast(left.length + ' change' + (left.length === 1 ? '' : 's') + ' saved on this phone, will send when online');
 }
 
 function replaceLead(lead) {
