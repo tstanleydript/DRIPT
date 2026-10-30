@@ -519,25 +519,37 @@ input[type="file"] { display: none; }
   font-weight: 500; letter-spacing: 1px; margin-bottom: 4px;
 }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+/* Each day's number is pressed into its square; booked jobs (projected) sit above the day's sales. */
+.cal-grid { --emboss: rgba(255,255,255,.07); --emboss-hi: rgba(0,0,0,.6); --emboss-lo: rgba(255,255,255,.05); }
+html[data-theme="market"] .cal-grid { --emboss: rgba(16,24,40,.075); --emboss-hi: rgba(255,255,255,.95); --emboss-lo: rgba(16,24,40,.09); }
 .cal-day {
   aspect-ratio: 1; background: var(--card); border: 1px solid var(--border-mid);
   border-radius: 4px; display: flex; flex-direction: column;
-  align-items: center; justify-content: flex-start;
-  padding: 4px 2px 3px;
+  align-items: center; justify-content: center; gap: 1px;
+  padding: 4px;
   color: var(--text); cursor: pointer;
-  position: relative;
+  position: relative; overflow: hidden; container-type: inline-size;
 }
-.cal-day .cal-day-num { font-size: 12px; font-weight: 500; line-height: 1; }
-.cal-day .cal-day-val {
-  font-size: 9px; color: var(--gain); margin-top: auto;
-  font-weight: 500; line-height: 1.1; white-space: nowrap;
+.cal-day .cal-day-num {
+  position: absolute; inset: 4px; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(18px, 66cqw, 44px); font-weight: 800; line-height: 1; letter-spacing: -.04em;
+  color: var(--emboss); text-shadow: 0 1px 0 var(--emboss-hi), 0 -1px 0 var(--emboss-lo);
+  pointer-events: none; font-variant-numeric: tabular-nums;
 }
+.cal-day .cal-day-val, .cal-day .cal-day-job {
+  position: relative; font-size: 9px; color: var(--gain);
+  line-height: 1.1; white-space: nowrap;
+}
+.cal-day .cal-day-val { font-weight: 700; }
+.cal-day .cal-day-job { font-weight: 500; }
 .cal-day.other-month { opacity: 0.25; }
 .cal-day.today { border-color: var(--accent); }
-.cal-day.today .cal-day-num { color: var(--accent); }
+.cal-day.today .cal-day-num { --emboss: color-mix(in srgb, var(--accent) 24%, transparent); }
 .cal-day.selected { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-.cal-day.selected .cal-day-num { color: var(--bg); }
-.cal-day.selected .cal-day-val { color: var(--bg); }
+.cal-day.selected .cal-day-num { --emboss: rgba(255,255,255,.2); text-shadow: none; }
+.cal-day.selected .cal-day-val, .cal-day.selected .cal-day-job { color: #fff; }
+.cal-legend { text-align: center; font-size: 11px; color: var(--muted); margin-top: -2px; }
+.cal-legend b { color: var(--gain); }
 
 .cal-total {
   text-align: center; padding: 12px 0 4px;
@@ -578,6 +590,7 @@ button.stat-mini:active { background: var(--card-active); }
 
 /* Commission rows */
 .call-sales { margin: -2px 2px 10px; font-size: 12px; color: var(--muted); }
+.call-sales b { color: var(--gain); }
 .commission-row {
   display: flex; justify-content: space-between;
   padding: 11px 0; border-bottom: 1px solid var(--border-mid);
@@ -944,6 +957,7 @@ button.stat-mini:active { background: var(--card-active); }
   </div>
   <div class="cal-grid" id="cal-grid"></div>
   <div class="cal-total" id="cal-total"></div>
+  <p class="cal-legend" id="cal-legend" hidden><b>+$</b> sold that day · <b>$</b> jobs booked for that day</p>
 
   <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px; margin-bottom:8px;">
     <p class="section-title" id="kpi-day-label" style="margin:0;">Today</p>
@@ -960,6 +974,7 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
   <p class="call-sales" id="k-call" hidden></p>
+  <p class="call-sales" id="k-jobs" hidden></p>
   <div class="mini-grid-2">
     <button class="stat-mini" id="edit-hours-btn"><div class="val" id="k-hours">0h</div><div class="lbl">Hours · tap to edit</div></button>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="k-rate">$0</div><div class="lbl">Per hour</div></div>
@@ -978,6 +993,7 @@ button.stat-mini:active { background: var(--card-active); }
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-earned">$0</div><div class="lbl">Commission</div></div>
   </div>
   <p class="call-sales" id="m-call" hidden></p>
+  <p class="call-sales" id="m-jobs" hidden></p>
   <div class="mini-grid-2">
     <div class="stat-mini"><div class="val" id="m-hours">0h</div><div class="lbl">Hours</div></div>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-rate">$0</div><div class="lbl">Per hour</div></div>
@@ -1067,7 +1083,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V25</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V26</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -2096,7 +2112,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V25';
+const APP_VERSION = 'V26';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2573,6 +2589,21 @@ function callSales() {
     rate: l.list === 'mine' ? Number(settings.commission || 0) : Number(d.rate || 7)
   }));
 }
+// Your booked jobs from today on (manager phones: sent with the call list), for projected revenue.
+function bookedJobs() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
+  const today = todayKey();
+  return d && Array.isArray(d.myJobs) ? d.myJobs.filter(j => j.day >= today) : [];
+}
+function jobsLine(id, jobs, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.hidden = !jobs.length;
+  const total = jobs.reduce((t, j) => t + (j.value || 0), 0);
+  el.innerHTML = jobs.length ? `${label}: <b>$${total.toLocaleString()}</b> · ${jobs.length} job${jobs.length === 1 ? '' : 's'}${jobs.length <= 4 ? ' (' + jobs.map(j => escapeHTML(j.client || '')).join(', ') + ')' : ''}` : '';
+}
+
 function salesStats(doorLeads, calls, allCalls) {
   const viaCalls = new Set(allCalls.map(c => c.appLeadId).filter(Boolean));
   const sold = doorLeads.filter(l => l.status === 'Booked' && !viaCalls.has(l.id));
@@ -2631,6 +2662,7 @@ function renderCalendar() {
   const daysInPrev = new Date(calYear, calMonth, 0).getDate();
   const todayK = todayKey();
   const calls = callSales();
+  const jobs = bookedJobs();
   let cells = [];
   for (let i = startOffset - 1; i >= 0; i--) {
     const d = daysInPrev - i;
@@ -2654,8 +2686,10 @@ function renderCalendar() {
     if (c.key === selectedDateKey) classes.push('selected');
     const stats = statsForDay(c.key, calls);
     const valueHtml = (stats.value > 0 && !c.other) ? `<div class="cal-day-val">+$${stats.value}</div>` : '';
+    const jobValue = c.other ? 0 : jobs.filter(j => j.day === c.key).reduce((t, j) => t + (j.value || 0), 0);
+    const jobHtml = jobValue > 0 ? `<div class="cal-day-job">$${jobValue}</div>` : '';
     return `<div class="${classes.join(' ')}" data-key="${c.key}">
-      <div class="cal-day-num">${c.day}</div>${valueHtml}</div>`;
+      <div class="cal-day-num" aria-hidden="true">${c.day}</div>${jobHtml}${valueHtml}</div>`;
   }).join('');
   grid.querySelectorAll('.cal-day').forEach(cell => {
     cell.addEventListener('click', () => {
@@ -2699,6 +2733,8 @@ function renderStatsOnly() {
   document.getElementById('k-value').textContent = '$' + stats.value.toLocaleString();
   const earnedDay = stats.earned;
   callLine('k-call', stats);
+  const jobs = bookedJobs();
+  jobsLine('k-jobs', jobs.filter(j => j.day === selectedDateKey), 'Jobs booked for this day');
   document.getElementById('k-earned').textContent = '$' + earnedDay.toLocaleString();
   const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) + '%' : '–';
   document.getElementById('k-convos-pct').textContent = pct(stats.convos, stats.doors) + ' of doors';
@@ -2719,6 +2755,9 @@ function renderStatsOnly() {
   document.getElementById('m-value').textContent = '$' + mStats.value.toLocaleString();
   const earnedMonth = mStats.earned;
   callLine('m-call', mStats);
+  const mPrefix = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-`;
+  jobsLine('m-jobs', jobs.filter(j => j.day.startsWith(mPrefix)), 'Jobs booked from today');
+  document.getElementById('cal-legend').hidden = !jobs.length;
   document.getElementById('m-earned').textContent = '$' + earnedMonth.toLocaleString();
   document.getElementById('m-convos-pct').textContent = pct(mStats.convos, mStats.doors) + ' of doors';
   document.getElementById('m-quotes-pct').textContent = pct(mStats.quotes, mStats.convos) + ' of convos';
