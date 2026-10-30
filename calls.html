@@ -559,6 +559,8 @@ function nextStep(l) {
   return l.onList ? [verb, catLabel(l.category, listOf(l))] : ['Nothing needed', catLabel(l.category, listOf(l))];
 }
 const dayOnly = d => fmt(d).replace(/ \d{2}$/, ''); // "21 Oct", no year
+// "30 Oct, 11:56 am" (Brisbane); a view known only by its day shows just the day.
+const viewedWhen = d => !d ? '' : d.includes('T') ? new Date(d).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }) : dayOnly(d);
 /** Step 1's line: where it's at, without the suggestion already shown above it. */
 const whereOf = l => { const w = (l.why || '').replace(/^📞[^·]*·\s*/, ''); return w.charAt(0).toUpperCase() + w.slice(1); };
 const reasonOf = l => (l.suggestion || l.why || '').replace(/^📞\s*/, '');
@@ -689,7 +691,7 @@ function renderSheet() {
       ${l.autoTemp && !l.temp ? `<p class="note">Not set by you yet: GHL’s lead score says ${esc(l.autoTemp)}.</p>` : ''}</div>
 
     <div class="signals">
-      ${quoted(l) ? `<div class="s ${p.views ? 'seen' : ''}">${EYE(22)}<b>${p.views || 0}</b><small>${p.views ? (p.views === 1 ? 'view' : 'views') + ' · last ' + dayOnly(p.lastViewed) : 'views'}</small></div>
+      ${quoted(l) ? `<div class="s ${p.views ? 'seen' : ''}">${EYE(22)}<b>${p.views || 0}</b><small>${p.views ? (p.views === 1 ? 'view' : 'views') + ' · last ' + viewedWhen(p.lastViewed) : 'views'}</small></div>
       <div class="s">${MAIL(22)}<b>${p.emailsSent ? (p.emailOpened ? TICK(14) + 'Opened' : CROSS(13) + 'Not opened') : '–'}</b><small>${p.emailsSent ? (p.emailOpened ? 'quote email · ' + dayOnly(p.emailOpened) : 'quote email') : 'no quote email'}</small></div>` : ''}
       <div class="s next">${ARROW(22)}<b>${esc(ns[0])}</b><small>${esc(ns[1])}</small></div>
     </div>
