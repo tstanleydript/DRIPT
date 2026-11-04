@@ -270,7 +270,7 @@ const fmt = d => d ? new Date(d.slice(0, 10) + 'T00:00:00Z').toLocaleDateString(
 const fmtDT = s => { if (!s) return ''; const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + '+10:00'); return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Brisbane' }); };
 const ago = d => { if (!d) return ''; const n = Math.round((Date.parse(todayKey()) - Date.parse(d.slice(0, 10))) / 86400000); return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n < 60 ? n + 'd ago' : n < 730 ? Math.round(n / 30) + 'mo ago' : Math.round(n / 365) + 'y ago'; };
 const tempOf = l => l.temp || l.autoTemp;
-const commission = (inc, pct) => inc / 1.1 * pct / 100;
+const commission = (inc, pct) => inc * pct / 100;
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2600); }
 
 // --- State -----------------------------------------------------------------------------------
@@ -495,10 +495,10 @@ function render() {
     <div class="money">
       <div class="tile"><b class="gain">${money(potential)}</b><span>Potential revenue in ${t.open} open ${mine ? 'quotes' : 'leads'}<br>${money(t.knownValue)} quoted${t.estValue ? ` + ${money(t.estValue)} est. for ${t.open - t.openKnown} with no price (median ${money(t.median)})` : ''}</span></div>
       ${email
-        ? `<div class="tile accent"><b class="gain">${money(commOf(openAll))}</b><span>Commission on them (Tom’s leads at ${data.rate || 7}%, your quotes at ${data.myRate || 20}%, ex GST)</span></div>`
+        ? `<div class="tile accent"><b class="gain">${money(commOf(openAll))}</b><span>Commission on them (Tom’s leads at ${data.rate || 7}%, your quotes at ${data.myRate || 20}%, + GST)</span></div>`
         : mine
-        ? `<div class="tile accent"><b class="gain">${money(commission(potential, rate))}</b><span>Your commission on them at ${rate}% (ex GST)</span></div>`
-        : `<div class="tile accent"><b id="comm" class="gain">${money(commission(potential, rate))}</b><span>Potential commission at <span id="rate-label">${rate}</span>% (ex GST)</span>
+        ? `<div class="tile accent"><b class="gain">${money(commission(potential, rate))}</b><span>Your commission on them at ${rate}% (+ GST)</span></div>`
+        : `<div class="tile accent"><b id="comm" class="gain">${money(commission(potential, rate))}</b><span>Potential commission at <span id="rate-label">${rate}</span>% (+ GST)</span>
         <div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div></div>`}
       <div class="tile"><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} ${mine ? 'accepted' : 'booked'}, coming up · <span id="comm-up">${money(email ? commOf(all.filter(l => l.category === 'upcoming')) : commission(t.upcomingValue, rate))}</span></span></div>
       <div class="tile"><b class="plain">${money(t.doneValue)}</b><span>${t.done} jobs done from these ${mine ? 'quotes' : 'leads'}</span></div>
@@ -509,7 +509,7 @@ function render() {
     <div class="summary">${list.length} lead${list.length === 1 ? '' : 's'} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))} quoted${view.bucket === 'list' ? (email ? ' · open leads with no mobile, hottest first' : mine ? ' · opened or viewed, most interested first' : ' · open leads not postponed, hottest first') : ''}</div>
     <div id="rows">${list.length ? list.slice(0, shown).map(rowHTML).join('') : '<div class="empty">Nothing here</div>'}</div>
     ${list.length > shown ? `<button class="more" id="more">Show more (${list.length - shown} left)</button>` : ''}
-    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Potential = open ${mine ? 'quotes' : 'leads'} (not booked, done or do-not-contact). Commission = revenue ÷ 1.1 × rate.${mine || view.bucket === 'viewed' ? ` 👁 Proposal views come from ServiceM8${data.viewsSince ? ' since ' + fmt(data.viewsSince) : ' (switching on)'}; before that, ✉ shows when the quote email was opened. An email “opened” the moment it arrived is usually the email app, not the client.` : ''}</p>`;
+    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Potential = open ${mine ? 'quotes' : 'leads'} (not booked, done or do-not-contact). Commission = job price × rate, + GST on your invoice.${mine || view.bucket === 'viewed' ? ` 👁 Proposal views come from ServiceM8${data.viewsSince ? ' since ' + fmt(data.viewsSince) : ' (switching on)'}; before that, ✉ shows when the quote email was opened. An email “opened” the moment it arrived is usually the email app, not the client.` : ''}</p>`;
   bind();
 }
 

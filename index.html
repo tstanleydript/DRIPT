@@ -557,6 +557,7 @@ html[data-theme="market"] .cal-grid { --emboss: rgba(16,24,40,.075); --emboss-hi
   letter-spacing: 1px; text-transform: uppercase;
 }
 .cal-total.zero { color: var(--muted); }
+.cal-income { color: var(--text); font-weight: 700; white-space: nowrap; }
 
 /* Funnel */
 .funnel-row { margin-bottom: 7px; }
@@ -994,6 +995,7 @@ button.stat-mini:active { background: var(--card-active); }
   </div>
   <p class="call-sales" id="m-call" hidden></p>
   <p class="call-sales" id="m-jobs" hidden></p>
+  <p class="call-sales" id="m-income" hidden></p>
   <div class="mini-grid-2">
     <div class="stat-mini"><div class="val" id="m-hours">0h</div><div class="lbl">Hours</div></div>
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-rate">$0</div><div class="lbl">Per hour</div></div>
@@ -1083,7 +1085,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V26</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V27</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -2112,7 +2114,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V26';
+const APP_VERSION = 'V27';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2594,14 +2596,23 @@ function bookedJobs() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
   const today = todayKey();
-  return d && Array.isArray(d.myJobs) ? d.myJobs.filter(j => j.day >= today) : [];
+  return d && Array.isArray(d.myJobs) ? d.myJobs.filter(j => j.day >= today && !j.done) : [];
+}
+// Your income (commission, ex GST) on every job done or booked in a month: done, booked, visit passed.
+function monthIncome(prefix) {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
+  if (!d || !Array.isArray(d.myJobs) || !d.myJobs.some(j => 'income' in j)) return null;
+  const jobs = d.myJobs.filter(j => j.day.startsWith(prefix));
+  return { total: jobs.reduce((t, j) => t + (j.income || 0), 0), done: jobs.filter(j => j.done).reduce((t, j) => t + (j.income || 0), 0), count: jobs.length };
 }
 function jobsLine(id, jobs, label) {
   const el = document.getElementById(id);
   if (!el) return;
   el.hidden = !jobs.length;
   const total = jobs.reduce((t, j) => t + (j.value || 0), 0);
-  el.innerHTML = jobs.length ? `${label}: <b>$${total.toLocaleString()}</b> · ${jobs.length} job${jobs.length === 1 ? '' : 's'}${jobs.length <= 4 ? ' (' + jobs.map(j => escapeHTML(j.client || '')).join(', ') + ')' : ''}` : '';
+  const income = jobs.reduce((t, j) => t + (j.income || 0), 0);
+  el.innerHTML = jobs.length ? `${label}: <b>$${total.toLocaleString()}</b> · ${jobs.length} job${jobs.length === 1 ? '' : 's'}${jobs.length <= 4 ? ' (' + jobs.map(j => escapeHTML(j.client || '')).join(', ') + ')' : ''}${income ? ` · your income <b>$${income.toLocaleString()}</b>` : ''}` : '';
 }
 
 function salesStats(doorLeads, calls, allCalls) {
@@ -2715,6 +2726,15 @@ function renderCalendar() {
     totalEl.textContent = `${monthNames[calMonth]}: $0${hoursStr}`;
     totalEl.classList.add('zero');
   }
+  // Projected income: your commission on the month's jobs (done + booked). Manager phones only.
+  const inc = monthIncome(`${calYear}-${String(calMonth + 1).padStart(2, '0')}-`);
+  if (inc && inc.count) {
+    const s = document.createElement('span');
+    s.className = 'cal-income';
+    s.textContent = ` · Income $${inc.total.toLocaleString()}`;
+    s.title = `Your commission on ${inc.count} job${inc.count === 1 ? '' : 's'} this month · $${inc.done.toLocaleString()} from jobs already done`;
+    totalEl.appendChild(s);
+  }
 }
 
 function renderStatsOnly() {
@@ -2757,6 +2777,11 @@ function renderStatsOnly() {
   callLine('m-call', mStats);
   const mPrefix = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-`;
   jobsLine('m-jobs', jobs.filter(j => j.day.startsWith(mPrefix)), 'Jobs booked from today');
+  const mInc = monthIncome(mPrefix), mIncEl = document.getElementById('m-income');
+  if (mIncEl) {
+    mIncEl.hidden = !(mInc && mInc.count);
+    if (mInc && mInc.count) mIncEl.innerHTML = `Projected income this month: <b>$${mInc.total.toLocaleString()}</b> · ${mInc.count} job${mInc.count === 1 ? '' : 's'} done or booked · $${mInc.done.toLocaleString()} from jobs already done`;
+  }
   document.getElementById('cal-legend').hidden = !jobs.length;
   document.getElementById('m-earned').textContent = '$' + earnedMonth.toLocaleString();
   document.getElementById('m-convos-pct').textContent = pct(mStats.convos, mStats.doors) + ' of doors';
