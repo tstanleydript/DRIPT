@@ -588,6 +588,25 @@ button.stat-mini:active { background: var(--card-active); }
   text-transform: uppercase; letter-spacing: 1px; font-weight: 500;
 }
 .stat-mini .pct { font-size: 10px; color: var(--muted-strong); margin-top: 2px; line-height: 1; letter-spacing: 0.5px; }
+/* V28: the month Commission tile flips: front = commission on what's sold (as before), back = commission
+   earned on every sale booked that month, wherever its job falls. */
+button.stat-mini.flip { position: relative; transition: transform .45s ease; transform-style: preserve-3d; }
+button.stat-mini.flip.on { transform: rotateY(180deg); }
+.flip .face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip .face.back {
+  position: absolute; inset: -1px; transform: rotateY(180deg); background: var(--card); border: 1px solid var(--gain);
+  border-radius: 4px; display: flex; flex-direction: column; justify-content: center; padding: 10px 6px;
+}
+.flip .lbl .hint { opacity: .7; }
+.comm-list { margin: -2px 0 12px; border: 1px solid var(--border-mid); border-radius: 4px; background: var(--card); }
+.comm-list .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 8px 10px; border-top: 1px solid var(--border-mid); font-size: 12px; }
+.comm-list .row:first-child { border-top: none; }
+.comm-list .who { color: var(--text); font-weight: 600; }
+.comm-list .amt { color: var(--gain); font-weight: 700; text-align: right; }
+.comm-list .sub { color: var(--muted); font-size: 11px; }
+.comm-list .sub.r { text-align: right; }
+.comm-list .head { padding: 8px 10px; font-size: 11px; color: var(--muted); }
+.comm-list .head b { color: var(--gain); }
 
 /* Commission rows */
 .call-sales { margin: -2px 2px 10px; font-size: 12px; color: var(--muted); }
@@ -991,8 +1010,12 @@ button.stat-mini:active { background: var(--card-active); }
   </div>
   <div class="mini-grid-2">
     <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-value">$0</div><div class="lbl">Sold $</div></div>
-    <div class="stat-mini"><div class="val" style="color:var(--gain);" id="m-earned">$0</div><div class="lbl">Commission</div></div>
+    <button class="stat-mini flip" id="m-comm-tile" type="button">
+      <div class="face front"><div class="val" style="color:var(--gain);" id="m-earned">$0</div><div class="lbl">Commission <span class="hint">↻</span></div></div>
+      <div class="face back"><div class="val" style="color:var(--gain);" id="m-earned-all">–</div><div class="lbl" id="m-earned-all-lbl">Earned this month</div></div>
+    </button>
   </div>
+  <div class="comm-list" id="m-comm-list" hidden></div>
   <p class="call-sales" id="m-call" hidden></p>
   <p class="call-sales" id="m-jobs" hidden></p>
   <p class="call-sales" id="m-income" hidden></p>
@@ -1085,7 +1108,7 @@ button.stat-mini:active { background: var(--card-active); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V27</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V28</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -1216,6 +1239,29 @@ let leads = loadJSON(STORE.leads, []);
 let settings = { ...DEFAULT_SETTINGS, ...loadJSON(STORE.settings, {}) };
 let kpi = loadJSON(STORE.kpi, {});
 let timeLog = loadJSON(STORE.timeLog, {});
+// V28: sessions used to be filed under the UTC date of their start, so anything clocked in before 10am
+// (Brisbane) landed on the day before and couldn't be found or edited on its real day. Re-file every
+// session under the phone's local date of its start (safe to run on every load).
+function localKeyOf(iso) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+(function refileSessions() {
+  let moved = 0;
+  const out = {};
+  for (const key of Object.keys(timeLog)) {
+    for (const s of timeLog[key] || []) {
+      const k = s && s.start ? localKeyOf(s.start) : key;
+      if (k !== key) moved++;
+      (out[k] = out[k] || []).push(s);
+    }
+  }
+  if (moved) {
+    for (const k of Object.keys(out)) out[k].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+    timeLog = out;
+    localStorage.setItem(STORE.timeLog, JSON.stringify(timeLog));
+  }
+})();
 let activeSession = loadJSON(STORE.activeSession, null);
 let rewards = loadJSON(STORE.rewards, { prizes: [], knockedToday: null, mysteryShownForMonth: null });
 if (!rewards.prizes) rewards.prizes = [];
@@ -2114,7 +2160,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V27';
+const APP_VERSION = 'V28';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2599,6 +2645,51 @@ function bookedJobs() {
   return d && Array.isArray(d.myJobs) ? d.myJobs.filter(j => j.day >= today && !j.done) : [];
 }
 // Your income (commission, ex GST) on every job done or booked in a month: done, booked, visit passed.
+// Every sale booked in the month, with the commission it earns (sent by the agent with the call list data:
+// manager phones only). The same rates as the review site's Money page and the invoice.
+let commFlipped = false;
+function commissionSalesFor(prefix) {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
+  if (!d || !Array.isArray(d.commission)) return null;
+  return d.commission.filter(s => String(s.booked).startsWith(prefix));
+}
+function renderCommBack(prefix, monthName) {
+  const tile = document.getElementById('m-comm-tile'), list = document.getElementById('m-comm-list');
+  if (!tile || !list) return;
+  const sales = commissionSalesFor(prefix);
+  monthName = monthName ? monthName[0] + monthName.slice(1).toLowerCase() : '';
+  const short = monthName.slice(0, 3);
+  tile.classList.toggle('on', commFlipped);
+  if (!sales) {
+    document.getElementById('m-earned-all').textContent = '–';
+    document.getElementById('m-earned-all-lbl').textContent = 'Needs the call list';
+    list.hidden = !commFlipped;
+    list.innerHTML = '<div class="head">This side comes from the agent. Open the call list once (or tap Send to agent) so the phone has it.</div>';
+    return;
+  }
+  const total = sales.reduce((t, s) => t + (s.commission || 0), 0);
+  const money = n => '$' + Math.round(n).toLocaleString();
+  document.getElementById('m-earned-all').textContent = money(total);
+  document.getElementById('m-earned-all-lbl').textContent = 'Earned · ' + short + ' sales';
+  list.hidden = !commFlipped;
+  if (!commFlipped) return;
+  const fmt = k => { if (!k) return ''; const [y, m, dd] = k.split('-').map(Number); return new Date(y, m - 1, dd).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }); };
+  const done = sales.filter(s => s.done).reduce((t, s) => t + (s.commission || 0), 0);
+  list.innerHTML = `<div class="head">${sales.length} sale${sales.length === 1 ? '' : 's'} booked in ${escapeHTML(monthName)} · <b>${money(total)}</b> commission · ${money(done)} from jobs already done</div>` +
+    sales.map(s => `<div class="row">
+      <div class="who">${escapeHTML(s.client)}</div><div class="amt">${money(s.commission)}</div>
+      <div class="sub">Sold ${fmt(s.booked)} · $${Number(s.value).toLocaleString()} at ${s.rate}%${s.job ? ' · #' + escapeHTML(s.job) : ''}</div>
+      <div class="sub r">${s.done ? 'done ' + fmt(s.jobDay) : s.jobDay ? 'job ' + fmt(s.jobDay) : 'no date yet'}</div>
+    </div>`).join('');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest || !e.target.closest('#m-comm-tile')) return;
+  commFlipped = !commFlipped;
+  const lbl = document.getElementById('kpi-month-label').textContent || '';
+  renderCommBack(`${calYear}-${String(calMonth + 1).padStart(2, '0')}-`, lbl.split(' ')[0]);
+});
+
 function monthIncome(prefix) {
   let d = null;
   try { d = JSON.parse(localStorage.getItem('dript_calls_data') || 'null'); } catch (e) {}
@@ -2657,7 +2748,7 @@ function hoursForMonth(year, month) {
     }
   }
   if (activeSession) {
-    const startKey = activeSession.start.slice(0, 10);
+    const startKey = localKeyOf(activeSession.start);
     if (startKey.startsWith(prefix)) totalMs += Date.now() - new Date(activeSession.start).getTime();
   }
   return totalMs;
@@ -2784,6 +2875,7 @@ function renderStatsOnly() {
   }
   document.getElementById('cal-legend').hidden = !jobs.length;
   document.getElementById('m-earned').textContent = '$' + earnedMonth.toLocaleString();
+  renderCommBack(mPrefix, monthNames[calMonth]);
   document.getElementById('m-convos-pct').textContent = pct(mStats.convos, mStats.doors) + ' of doors';
   document.getElementById('m-quotes-pct').textContent = pct(mStats.quotes, mStats.convos) + ' of convos';
   document.getElementById('m-booked-pct').textContent = pct(mStats.booked, mStats.quotes) + ' of quotes';
@@ -2903,11 +2995,25 @@ document.getElementById('clock-btn').addEventListener('click', () => {
     toast('Clocked in');
   } else {
     const elapsed = Date.now() - new Date(activeSession.start).getTime();
-    const dur = formatDuration(elapsed);
-    if (!confirm(`Clock out now?\n\nSession length: ${dur}`)) return;
     const startIso = activeSession.start;
-    const endIso = new Date().toISOString();
-    const dayKey = startIso.slice(0, 10);
+    let endIso = new Date().toISOString();
+    let dur = formatDuration(elapsed);
+    if (elapsed > 12 * 3600000) {
+      // Clock left running: ask when they really finished, on the day they clocked in.
+      const st = new Date(startIso);
+      const ans = prompt(`Your clock has been running since ${formatTime(startIso)} on ${st.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} (${dur}).\n\nWhat time did you finish that day? (e.g. 4:30pm or 16:30)`, '');
+      if (ans === null) return;
+      const m = ans.trim().toLowerCase().match(/^(\d{1,2})(?::|\.)?(\d{2})?\s*(am|pm)?$/);
+      if (!m) return toast('Try a time like 4:30pm');
+      let h = Number(m[1]); const mi = Number(m[2] || 0);
+      if (m[3] === 'pm' && h < 12) h += 12;
+      if (m[3] === 'am' && h === 12) h = 0;
+      const end = new Date(st.getFullYear(), st.getMonth(), st.getDate(), h, mi);
+      if (end <= st || h > 23 || mi > 59) return toast('Finish must be after you clocked in');
+      endIso = end.toISOString();
+      dur = formatDuration(end - st);
+    } else if (!confirm(`Clock out now?\n\nSession length: ${dur}`)) return;
+    const dayKey = localKeyOf(startIso);
     if (!timeLog[dayKey]) timeLog[dayKey] = [];
     timeLog[dayKey].push({ start: startIso, end: endIso });
     saveJSON(STORE.timeLog, timeLog);
@@ -2926,7 +3032,7 @@ function hoursForDay(key) {
   sessions.forEach(s => {
     if (s.start && s.end) totalMs += new Date(s.end).getTime() - new Date(s.start).getTime();
   });
-  if (activeSession && activeSession.start.slice(0, 10) === key) {
+  if (activeSession && localKeyOf(activeSession.start) === key) {
     totalMs += Date.now() - new Date(activeSession.start).getTime();
   }
   return totalMs;
