@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dript">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <meta name="theme-color" content="#141414">
 <script>
 // Colour theme: "market" (Market Open, light, the default) or "classic" (the original dark look).
@@ -1034,6 +1037,14 @@ button.stat-mini.flip.on { transform: rotateY(180deg); }
     <button type="button" data-theme-pick="classic"><span class="sw"><i style="background:#141414"></i><i style="background:#262626"></i><i style="background:#d4ff00"></i></span>Classic</button>
   </div>
 
+  <div id="push-box" hidden>
+    <p class="section-title">Sale alerts</p>
+    <div class="form-group">
+      <p id="push-state" style="font-size:13px; color:var(--muted); margin:0 0 10px;">A notification on this phone when one of your quotes is accepted or booked.</p>
+      <button type="button" class="secondary-btn" id="push-btn">TURN ON SALE ALERTS</button>
+    </div>
+  </div>
+
   <p class="section-title">Monthly goal</p>
   <div class="form-group">
     <label>Target sold ($) per month</label>
@@ -1108,7 +1119,7 @@ button.stat-mini.flip.on { transform: rotateY(180deg); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V28</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V29</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -2160,7 +2171,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V28';
+const APP_VERSION = 'V29';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -2448,6 +2459,57 @@ document.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('
   if (document.getElementById('view-home').classList.contains('active')) renderHome();
 }));
 markThemePick();
+// V29: sale alerts. The service worker (sw.js) shows notifications the agent pushes; Settings → Sale alerts
+// (managers only) asks iPhone for permission, subscribes and sends the subscription through the call list's
+// edit queue (callUpdate with the manager code), which the agent picks up within 5 minutes and answers with
+// a "Sale alerts are on" test notification.
+const PUSH_KEY = 'BDaN228q00M1hKcA4wqGGEQGRNlikJXAqF1g5e1d0DolQVZP0BfCDj-U0ELVywius_HYRMcQnijGL3m4FO0I5Hw';
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+function pushKeyBytes() {
+  const b = atob((PUSH_KEY + '='.repeat((4 - PUSH_KEY.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(b, c => c.charCodeAt(0));
+}
+function pushSay(t) { document.getElementById('push-state').textContent = t; }
+function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+async function pushShowState() {
+  let code = '';
+  try { code = localStorage.getItem('dript_calls_code') || ''; } catch (e) {}
+  document.getElementById('push-box').hidden = !code;
+  if (!code) return;
+  const btn = document.getElementById('push-btn');
+  if (!pushSupported()) {
+    pushSay(navigator.standalone ? "This app icon can't get notifications yet (no push support). Tell Claude this message." : 'Open Dript from its home screen icon to turn on sale alerts.');
+    btn.hidden = true;
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub && Notification.permission === 'granted') { pushSay('On ✓ Sale alerts come to this phone.'); btn.textContent = 'SEND TEST AGAIN'; }
+    else if (Notification.permission === 'denied') pushSay('Notifications are blocked for Dript. Turn them on in iPhone Settings → Notifications → Dript.');
+  } catch (e) {}
+}
+document.getElementById('push-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('push-btn');
+  let code = '';
+  try { code = localStorage.getItem('dript_calls_code') || ''; code = JSON.parse(code); } catch (e) {}
+  btn.disabled = true;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { pushSay('Notifications weren\'t allowed. Turn them on in iPhone Settings → Notifications → Dript, then try again.'); return; }
+    pushSay('Setting up…');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKeyBytes() });
+    const r = await fetch(AGENT_URL, { method: 'POST', body: JSON.stringify({ action: 'callUpdate', code, edit: { id: 'push-' + Date.now(), key: '__push', push: sub.toJSON(), at: new Date().toISOString(), by: 'Tim (phone)' } }) }).then(x => x.json());
+    if (!r.ok) throw new Error(r.error || 'not saved');
+    pushSay('On ✓ A test alert ("Sale alerts are on") should arrive within about 5 minutes.');
+    btn.textContent = 'SEND TEST AGAIN';
+  } catch (e) {
+    pushSay("Couldn't turn it on: " + (e && e.message ? e.message : e));
+  } finally { btn.disabled = false; }
+});
+pushShowState();
 // Managers only: shown once the manager code has been entered on the call list page (calls.html).
 try { document.getElementById('calls-btn').hidden = !localStorage.getItem('dript_calls_code'); } catch (e) {}
 // The way in the first time: tap the version line in Settings 5 times (the page asks for the code).
@@ -2580,10 +2642,23 @@ document.getElementById('import-file').addEventListener('change', (e) => {
           (data.timeLog[key] || []).forEach(sess => timeLog[key].push(sess));
         }
       }
+      // V29: a fresh app (e.g. the home screen icon re-added for the new logo) also takes the backup's
+      // settings and rewards; a phone that already has its own keeps them.
+      let fresh = false;
+      try { fresh = !localStorage.getItem(STORE.settings) || !settings.repName; } catch (err) {}
+      if (fresh && data.settings && typeof data.settings === 'object') {
+        settings = { ...DEFAULT_SETTINGS, ...data.settings };
+        saveJSON(STORE.settings, settings);
+      }
+      if (data.rewards && typeof data.rewards === 'object' && !(rewards.prizes || []).length) {
+        rewards = { ...rewards, ...data.rewards };
+        saveJSON(STORE.rewards, rewards);
+      }
       saveJSON(STORE.leads, leads);
       saveJSON(STORE.kpi, kpi);
       saveJSON(STORE.timeLog, timeLog);
-      toast(`Imported ${leadsAdded} leads`);
+      toast(`Imported ${leadsAdded} leads${fresh && data.settings ? ' and your settings' : ''}`);
+      if (fresh && data.settings) setTimeout(() => location.reload(), 1200);
     } catch { toast('Invalid backup file'); }
     e.target.value = '';
   };
