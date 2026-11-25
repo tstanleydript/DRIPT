@@ -1119,7 +1119,7 @@ button.stat-mini.flip.on { transform: rotateY(180deg); }
   <button class="secondary-btn" id="strip-photos">REMOVE PHOTOS (FREE STORAGE)</button>
   <button class="secondary-btn danger" id="clear-old">CLEAR LEADS &gt; 30 DAYS</button>
 
-  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V29</p>
+  <p id="app-version" style="text-align:center; color:var(--muted); font-size:10px; margin-top:20px; letter-spacing:1px;">DRIPT DOORKNOCKER · V30</p>
 </div>
 
 <!-- AGENT STATUS -->
@@ -2171,7 +2171,7 @@ function statusBadge(l) {
 // Sends every lead not yet sent (from the day this version was first opened) to the office agent,
 // through a Google Apps Script that saves them into the agent's Google Drive inbox.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
-const APP_VERSION = 'V29';
+const APP_VERSION = 'V30';
 if (!settings.agentSince) { settings.agentSince = todayKey(); saveJSON(STORE.settings, settings); }
 
 function unsentLeads() {
@@ -3062,6 +3062,37 @@ function startClockTicker() {
   if (activeSession) clockTicker = setInterval(renderClockButton, 60000);
 }
 
+// V30: a clock left running is ended at a time they give (on the day they clocked in), or thrown away.
+// Used by the clock button and by the running row in the hours window (Tim, 25 Nov 2026: sessions of 40h+
+// he couldn't delete were a clock still running, which the hours window never listed).
+function askFinish(startIso) {
+  const st = new Date(startIso);
+  const ans = prompt(`Your clock has been running since ${formatTime(startIso)} on ${st.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} (${formatDuration(Date.now() - st.getTime())}).\n\nWhat time did you finish that day? (e.g. 4:30pm or 16:30)`, '');
+  if (ans === null) return null;
+  const m = ans.trim().toLowerCase().match(/^(\d{1,2})(?::|\.)?(\d{2})?\s*(am|pm)?$/);
+  if (!m) { toast('Try a time like 4:30pm'); return null; }
+  let h = Number(m[1]); const mi = Number(m[2] || 0);
+  if (m[3] === 'pm' && h < 12) h += 12;
+  if (m[3] === 'am' && h === 12) h = 0;
+  const end = new Date(st.getFullYear(), st.getMonth(), st.getDate(), h, mi);
+  if (end <= st || h > 23 || mi > 59) { toast('Finish must be after you clocked in'); return null; }
+  return end.toISOString();
+}
+function endActiveSession(endIso) {
+  const startIso = activeSession.start;
+  if (endIso) {
+    const dayKey = localKeyOf(startIso);
+    if (!timeLog[dayKey]) timeLog[dayKey] = [];
+    timeLog[dayKey].push({ start: startIso, end: endIso });
+    timeLog[dayKey].sort((a, b) => a.start.localeCompare(b.start));
+    saveJSON(STORE.timeLog, timeLog);
+  }
+  activeSession = null;
+  localStorage.removeItem(STORE.activeSession);
+  if (clockTicker) { clearInterval(clockTicker); clockTicker = null; }
+  renderClockButton();
+}
+
 document.getElementById('clock-btn').addEventListener('click', () => {
   if (!activeSession) {
     activeSession = { start: new Date().toISOString() };
@@ -3150,11 +3181,23 @@ function formatTime(iso) {
 function renderHoursSessions() {
   const sessions = timeLog[selectedDateKey] || [];
   const list = document.getElementById('hours-sessions-list');
-  if (sessions.length === 0) {
+  // V30: the clock still running, on the day it started, so it can be stopped or deleted here.
+  const running = activeSession && localKeyOf(activeSession.start) === selectedDateKey;
+  const runRow = running ? `<div style="background:var(--bg); border:1px solid #b45309; border-radius:4px; padding:10px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <div>
+        <div style="font-size:13px; color:var(--text); font-weight:500;">${formatTime(activeSession.start)} → still running</div>
+        <div style="font-size:11px; color:#d97706; margin-top:2px; letter-spacing:1px;">${formatDuration(Date.now() - new Date(activeSession.start).getTime())} · clock not stopped</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+      <button id="hours-run-stop" style="background:transparent; color:var(--text); border:1px solid var(--border-mid); border-radius:4px; padding:5px 10px; font-size:10px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">Stop at…</button>
+      <button id="hours-run-del" style="background:transparent; color:#fca5a5; border:1px solid #991b1b; border-radius:4px; padding:5px 10px; font-size:10px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">Delete</button>
+      </div>
+    </div>` : '';
+  if (sessions.length === 0 && !running) {
     list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center; padding:10px 0; letter-spacing:1px; text-transform:uppercase;">No sessions logged</div>';
     return;
   }
-  list.innerHTML = sessions.map((s, i) => {
+  list.innerHTML = runRow + sessions.map((s, i) => {
     const dur = formatDuration(new Date(s.end).getTime() - new Date(s.start).getTime());
     return `<div style="background:var(--bg); border:1px solid var(--border-mid); border-radius:4px; padding:10px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
       <div>
@@ -3167,6 +3210,21 @@ function renderHoursSessions() {
       </div>
     </div>`;
   }).join('');
+  if (running) {
+    document.getElementById('hours-run-stop').addEventListener('click', () => {
+      const endIso = askFinish(activeSession.start);
+      if (!endIso) return;
+      endActiveSession(endIso);
+      toast('Clock stopped');
+      renderHoursSessions();
+    });
+    document.getElementById('hours-run-del').addEventListener('click', () => {
+      if (!confirm('Delete this running clock? Its hours won\'t count.')) return;
+      endActiveSession(null);
+      toast('Clock deleted');
+      renderHoursSessions();
+    });
+  }
   list.querySelectorAll('.hours-edit').forEach(btn => {
     btn.addEventListener('click', () => openSessionForm(Number(btn.dataset.idx)));
   });
