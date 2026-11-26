@@ -311,7 +311,10 @@ textarea { min-height: 76px; resize: vertical; }
 // The same Apps Script web app the rep app sends to.
 const AGENT_URL = 'https://script.google.com/macros/s/AKfycbyMIYiA5qEPeFXfRgMj3Unh-bh1P6zUdZ4OL-j77nkdjcgD3kngs49trjCjI092gy-UXw/exec';
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-const STORE = { code: 'dript_calls_code', data: 'dript_calls_data', outbox: 'dript_calls_outbox', view: 'dript_calls_view' };
+// calls.html?rep=1: a rep's own call list (rep.html, rep-portal.ts): his own code, Tom's leads only, no rate slider.
+const REP = !LOCAL && new URLSearchParams(location.search).has('rep');
+const STORE = REP ? { code: 'dript_rep_code', data: 'dript_rep_calls', outbox: 'dript_rep_outbox', view: 'dript_rep_view' }
+  : { code: 'dript_calls_code', data: 'dript_calls_data', outbox: 'dript_calls_outbox', view: 'dript_calls_view' };
 
 const CATS = [
   ['no-followup', 'Quoted, no follow-up'], ['not-ready', 'Not ready yet'], ['cancelled', 'Booked, then cancelled or moved'],
@@ -366,6 +369,7 @@ let data = load(STORE.data, null);
 let outbox = load(STORE.outbox, []);
 const view = Object.assign({ list: 'tom', bucket: 'list', q: '', temp: '', from: '', to: '', min: '', max: '', sort: 'score', rateOpen: false }, load(STORE.view, {}), { temp: '', from: '', to: '', min: '', max: '' });
 if (view.bucket === 'due') view.bucket = 'list';
+if (REP && view.list === 'mine') view.list = 'tom';
 { const q = new URLSearchParams(location.search).get('list'); if (q === 'mine' || q === 'tom' || q === 'email') { view.list = q; view.bucket = 'list'; } } // calls.html?list=mine opens My proposals
 let shown = 60;
 let openKey = null;
@@ -384,8 +388,9 @@ async function fetchData() {
     if (!res.ok) throw new Error('The agent didn’t answer');
     return { data: await res.json(), pending: [] };
   }
-  const out = await script({ action: 'callList' });
-  return { data: out.data, pending: out.pending || [] };
+  const out = await script({ action: REP ? 'repCalls' : 'callList' });
+  if (REP) { try { localStorage.setItem('dript_rep_page', JSON.stringify(Object.assign({}, out.data, { calls: undefined }))); } catch {} }
+  return { data: REP ? (out.data && out.data.calls) : out.data, pending: out.pending || [] };
 }
 
 async function refresh(quiet) {
@@ -403,7 +408,7 @@ async function refresh(quiet) {
     await flush();
     if (!quiet) toast('Up to date');
   } catch (err) {
-    if (/code/i.test(String(err))) { localStorage.removeItem(STORE.code); toast('Wrong manager code'); }
+    if (/code/i.test(String(err))) { localStorage.removeItem(STORE.code); toast(REP ? 'Wrong code' : 'Wrong manager code'); }
     else toast(data ? 'Offline: showing the last saved list' : String(err.message || err));
   }
   render();
@@ -442,7 +447,7 @@ async function flushOutbox() {
     const batch = outbox.slice();
     const failed = [];
     for (const e of batch) {
-      try { await script({ action: 'callUpdate', edit: e }); } catch (err) { failed.push(e); }
+      try { await script({ action: REP ? 'repUpdate' : 'callUpdate', edit: e }); } catch (err) { failed.push(e); }
     }
     // Keep anything saved while this batch was sending.
     outbox = failed.concat(outbox.filter(e => !batch.includes(e)));
@@ -576,7 +581,7 @@ const wday = d => new Date(d.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en
 function render() {
   const app = document.getElementById('app');
   if (!LOCAL && !load(STORE.code, '')) return renderGate(app);
-  const back = LOCAL ? '<a href="/dashboard">‹ Today</a>' : '<a href="./">‹ App</a>';
+  const back = LOCAL ? '<a href="/dashboard">‹ Today</a>' : REP ? '<a href="./rep.html">‹ My page</a>' : '<a href="./">‹ App</a>';
   if (!data) { app.innerHTML = `<div class="top">${back}<h1>Call list</h1></div><div class="empty" style="margin-top:20px">Loading…</div>`; return; }
   const mine = view.list === 'mine', email = view.list === 'email';
   const all = leads();
@@ -600,15 +605,15 @@ function render() {
   app.innerHTML = `
     <div class="top">${back}<h1>Call list</h1><button id="reload" aria-label="Refresh">↻</button></div>
     ${stale ? `<div class="warn">This list is from ${fmtDT(data.generatedAt)}. The office computer updates it every 2 hours while it’s on.</div>` : ''}
-    <div class="lists"><button data-list="tom" class="${view.list === 'tom' ? 'on' : ''}">${esc(owner)}’s leads <b>${nTom}</b></button><button data-list="mine" class="${mine ? 'on' : ''}">My quotes <b>${nMine}</b></button><button data-list="email" class="${email ? 'on' : ''}">Email <b>${nEmail}</b></button></div>
+    <div class="lists"><button data-list="tom" class="${view.list === 'tom' ? 'on' : ''}">${esc(owner)}’s leads <b>${nTom}</b></button>${REP ? '' : `<button data-list="mine" class="${mine ? 'on' : ''}">My quotes <b>${nMine}</b></button>`}<button data-list="email" class="${email ? 'on' : ''}">Email <b>${nEmail}</b></button></div>
     <div class="today"><span>Today</span><b>${done.length}</b> ${email ? 'done' : 'calls'}<i></i><b>${reached}</b> reached<i></i><b>${booked.length}</b> booked${bookedValue ? ` <b class="gain">${money(bookedValue)}</b>` : ''}</div>
     <div class="figs">
       <div><b class="gain">${money(potential)}</b><span>open · ${t.open} ${mine ? 'quotes' : 'leads'}</span></div>
-      <div class="${email || mine ? '' : 'tap'}" id="comm-cell"><b class="gain" id="comm">${money(comm)}</b><span>${email ? 'commission' : `<span id="rate-label">${rate}</span>% comm${mine ? '' : ' ✎'}`}</span></div>
+      <div class="${email || mine || REP ? '' : 'tap'}" id="comm-cell"><b class="gain" id="comm">${money(comm)}</b><span>${email ? 'commission' : `<span id="rate-label">${rate}</span>% comm${mine || REP ? '' : ' ✎'}`}</span></div>
       <div><b class="gain">${money(t.upcomingValue)}</b><span>${t.upcoming} booked · <span id="comm-up">${money(email ? commOf(all.filter(l => l.category === 'upcoming')) : commission(t.upcomingValue, rate))}</span></span></div>
       <div><b>${money(t.doneValue)}</b><span>${t.done} done</span></div>
     </div>
-    ${view.rateOpen && !email && !mine ? `<div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div>` : ''}
+    ${view.rateOpen && !email && !mine && !REP ? `<div class="rate"><input type="range" id="rate" min="1" max="35" step="0.5" value="${rate}"><output id="rate-out">${rate}%</output></div>` : ''}
     <div class="tabs">${main.map(([k, label, fn]) => `<button data-bucket="${k}" class="${view.bucket === k ? 'on' : ''}">${esc(label)} <b>${all.filter(fn).length}</b></button>`).join('')}
       <select id="other" aria-label="Other lists" class="${main.some(m => m[0] === view.bucket) ? '' : 'on'}"><option value="">More ▾</option>${others.map(([k, label, n]) => `<option value="${k}" ${view.bucket === k ? 'selected' : ''}>${esc(label)} (${n})</option>`).join('')}</select></div>
     <div class="bar"><input id="f-q" type="search" placeholder="Search name, phone, street, note" value="${esc(view.q)}">
@@ -617,7 +622,7 @@ function render() {
     <div class="summary">${list.length} · ${money(list.reduce((s, l) => s + (l.value || 0), 0))}${view.quoted ? ` · quoted ${view.quoted === 'old' ? 'over 6 months ago' : 'in the last ' + ({ 7: '7 days', 30: '30 days', 90: '90 days', 182: '6 months', 365: '12 months' })[view.quoted]} <button class="linkish" id="f-quoted-x">clear</button>` : ''}</div>
     <div id="rows" class="rows">${list.length ? list.slice(0, shown).map((l, i) => rowHTML(l, i)).join('') : `<div class="empty">${view.bucket === 'list' ? 'All called. Nice.' : view.bucket === 'today' ? 'Nothing logged yet today' : 'Nothing here'}</div>`}</div>
     ${list.length > shown ? `<button class="more" id="more">Show more (${list.length - shown} left)</button>` : ''}
-    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. Commission = job price × rate, + GST on your invoice.</p>`;
+    <p class="note">Updated ${fmtDT(data.generatedAt)}${outbox.length ? ` · ${outbox.length} change(s) waiting to send` : ''}. ${REP ? 'Commission = job price × rate, GST included. Tom’s leads go to 12.5% from 31 days after the quote (★).' : 'Commission = job price × rate, + GST on your invoice.'}</p>`;
   bind();
 }
 
@@ -725,9 +730,9 @@ async function localRefresh() {
 
 function renderGate(app) {
   app.innerHTML = `<div class="gate"><h1 style="color:var(--accent);letter-spacing:2px;font-size:16px">CALL LIST</h1>
-    <p>Enter the manager code to open the call list.</p>
-    <input type="password" id="code" autocomplete="off" autocapitalize="none" placeholder="Manager code">
-    <button class="save" id="go">Open</button><p class="note"><a href="./">‹ Back to the app</a></p></div>`;
+    <p>${REP ? 'Enter your code to open your call list.' : 'Enter the manager code to open the call list.'}</p>
+    <input type="password" id="code" autocomplete="off" autocapitalize="none" placeholder="${REP ? 'Your code' : 'Manager code'}">
+    <button class="save" id="go">Open</button><p class="note"><a href="${REP ? './rep.html' : './'}">‹ Back</a></p></div>`;
   document.getElementById('go').addEventListener('click', () => { save(STORE.code, document.getElementById('code').value.trim()); refresh(false); });
 }
 
